@@ -3,13 +3,13 @@ clear
 % Add the Muscle DTI toolbox to the MATLAB path. If you have done this
 % before, you don't have to do this again (but there is not problem doing
 % it again).
-addpath(genpath('matlab_functions'))
+addpath(genpath('../matlab_functions'))
 
 %% Set some filenames
 % This assumes that the data have been preprocessed and that masks were
 % created with 'example_preprocessing.m'.
 
-datapath   = fullfile(pwd,'example_data');
+datapath   = fullfile(pwd,'data');
 
 % Filenames for tractography
 % Name of the the fibre file created with DSI studio (the .fib.gz file that

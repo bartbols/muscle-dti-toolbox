@@ -40,8 +40,8 @@ function filename = MakeSurfaceAndMasks(segm_filename, DTI_filename, varargin )
 % - MaskPrefix: prefix for the mask and surface model filename. The short
 % name of the label (e.g. MG) will be added to the prefix. The default is 
 % the DTI filename.
-% - OutputDir: folder in which the mask and surface file will be saved. The
-% default is the folder in which the segmentation file lives.
+% - ResultsPath: folder in which the mask and surface file will be saved. The
+%   default is the folder in which the segmentation file lives.
 % - NumberOfVoxelsToRemove: number of layers of voxels to remove from the
 %   full mask to generate the seed mask. Default = 2
 % - MakeMasks  : if true, the tractography masks are created. Default = true
@@ -69,7 +69,7 @@ function filename = MakeSurfaceAndMasks(segm_filename, DTI_filename, varargin )
 %
 % Example 2 (using LabelNumbers):
 % filename = MakeSurfaceAndMasks('segmentation.nii.gz', 'DTI_data.nii.gz', ...
-% 'LabelNumbers',[2 4],'OutputDir','MyMasks')
+% 'LabelNumbers',[2 4],'ResultsPath','MyMasks')
 
 
 %% Check input arguments
@@ -79,7 +79,7 @@ addRequired(p,'DTI_filename',@(x) ~isempty(strfind(x,'.nii.gz')))
 addParameter(p,'LabelNumbers',[],@isnumeric)
 addParameter(p,'LabelNames',[],@(x) assert(ischar(x) || iscell(x)))
 addParameter(p,'MaskPrefix',[],@ischar)
-addParameter(p,'OutputDir',fileparts(segm_filename),@ischar)
+addParameter(p,'ResultsPath',fileparts(segm_filename),@ischar)
 addParameter(p,'NumberOfVoxelsToRemove',2,@(x)(isnumeric(x) && mod(x,1)==0 && x>0))
 addParameter(p,'MakeSurface',true,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'MakeMasks',true,@(x) x==0 || x==1 || islogical(x) )
@@ -87,6 +87,12 @@ parse(p,segm_filename,DTI_filename,varargin{:});
 
 MakeSurface = p.Results.MakeSurface; % if true, surfaces are made
 MakeMasks   = p.Results.MakeMasks; % if true, masks are made
+
+%% Create results folder if it doesnt' exist
+if exist(p.Results.ResultsPath,'dir') ~= 2
+    mkdir(p.Results.ResultsPath)
+    fprintf('Results directory created: %s\n',p.Results.ResultsPath)
+end
 %%
 % Read in the label information file
 LabelInfoFilename = [segm_filename(1:end-7) '.lab'];
@@ -218,9 +224,9 @@ for CurrentIdx = idxToProcess'
     if MakeMasks == true
         % Set the filenames of the mask files that will be created
         % Save the data in the same folder as the segmentation file
-        filename(c).full_mask     = fullfile(p.Results.OutputDir, sprintf('%s_%s_full.nii.gz',MaskPrefix,CurrentLabelName));
-        filename(c).boundary_mask = fullfile(p.Results.OutputDir, sprintf('%s_%s_boundary.nii.gz',MaskPrefix,CurrentLabelName));
-        filename(c).seed_mask     = fullfile(p.Results.OutputDir, sprintf('%s_%s_seed.nii.gz',MaskPrefix,CurrentLabelName));
+        filename(c).full_mask     = fullfile(p.Results.ResultsPath, sprintf('%s_%s_full.nii.gz',MaskPrefix,CurrentLabelName));
+        filename(c).boundary_mask = fullfile(p.Results.ResultsPath, sprintf('%s_%s_boundary.nii.gz',MaskPrefix,CurrentLabelName));
+        filename(c).seed_mask     = fullfile(p.Results.ResultsPath, sprintf('%s_%s_seed.nii.gz',MaskPrefix,CurrentLabelName));
 
         % -------------------- TRACTOGRAPHY MASK FILES ----------------------
 
@@ -275,7 +281,7 @@ for CurrentIdx = idxToProcess'
     % Create a surface model from the binary mask using the MATLAB toolbox
     % iso2mesh
     if MakeSurface == true
-        filename(c).surface = fullfile(p.Results.OutputDir, sprintf('%s_%s.stl',MaskPrefix,CurrentLabelName));
+        filename(c).surface = fullfile(p.Results.ResultsPath, sprintf('%s_%s.stl',MaskPrefix,CurrentLabelName));
         opt.radbound = 1;
         opt.maxsurf = 1;
         method = 'cgalsurf';

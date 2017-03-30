@@ -32,6 +32,9 @@ function filename = Preprocessing_and_DTI_recon( varargin )
 % bval: name of the file containing the b-value data. If not
 % provided, the user is requested to select a file.
 %
+% ResultsPath: path where results (filtered DTI, src and fib-files, etc)
+%              will be saved to.
+%
 % SRC: name of the DSI-studio source file. If not provided, the same name
 % as the DTI file is used (but with extension .src.gz). 
 %
@@ -63,6 +66,7 @@ addParameter(p,'SRC',[],@(x) ~isempty(strfind(x,'.src.gz')))
 addParameter(p,'FIB',[],@(x) ~isempty(strfind(x,'.fib.gz')))
 addParameter(p,'filter',true,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'CorrectBVEC',true,@(x) x==0 || x==1 || islogical(x) )
+addParameter(p,'ResultsPath',[])
 parse(p,varargin{:});
 
 % Make cell structure with input arguments
@@ -97,6 +101,21 @@ if isempty(F{strcmp(F(:,1),'bvec'),2})
     F{strcmp(F(:,1),'bvec'),2} = fullfile(path,fname);
 end  
 
+if isempty(F{strcmp(F(:,1),'ResultsPath'),2})
+%   No ResultsPath is provided. Select a path now.
+    if exist('path','var')
+        ResultsPath = uigetdir(path,'Select a directory where the results will be saved to');
+    else
+        ResultsPath = uigetdir(pwd,'Select a directory where the results will be saved to');
+    end
+    F{strcmp(F(:,1),'ResultsPath'),2} = ResultsPath;
+    % Create the results path, if it doesn't exist already
+    if exist(ResultsPath,'dir') ~= 2
+        mkdir(ResultsPath)
+        fprintf('Results directory created: %s\n',ResultsPath)
+    end
+end  
+
 % Decide whether to filter or not
 FilterFlag      = F{strcmp(F(:,1),'filter'),2};
 if nargin == 0
@@ -118,7 +137,7 @@ else
     app = '';
 end
 
-% Decide whether to correct the bvec file or noet
+% Decide whether to correct the bvec file or not
 BVEC_correction = F{strcmp(F(:,1),'CorrectBVEC'),2};
 if nargin == 0
     answer = questdlg('Do you want to correct the bvec-file?','BVEC correction?',...
@@ -137,26 +156,30 @@ end
 if isempty(F{strcmp(F(:,1),'SRC'),2})
 %    No name for the src-file is provided. Use name of DTI file but change
 %    extension to .src.gz
-   F{strcmp(F(:,1),'SRC'),2} = [F{strcmp(F(:,1),'DTI'),2}(1:end-7) app '.src.gz'];
+    [path,file,ext] = fileparts(F{strcmp(F(:,1),'DTI'),2});
+    F{strcmp(F(:,1),'SRC'),2} = fullfile(F{strcmp(F(:,1),'ResultsPath'),2},[file(1:end-4) app '.src.gz']);
 end  
  
 if isempty(F{strcmp(F(:,1),'FIB'),2})
 %    No name for the fib-file is provided. Use name of DTI file but change
 %    extension to .fib.gz
-   F{strcmp(F(:,1),'FIB'),2} = [F{strcmp(F(:,1),'DTI'),2}(1:end-7) app '.fib.gz'];
+    [path,file,ext] = fileparts(F{strcmp(F(:,1),'DTI'),2});
+    F{strcmp(F(:,1),'FIB'),2} = fullfile(F{strcmp(F(:,1),'ResultsPath'),2},[file(1:end-4) app '.fib.gz']);
 end  
 
 % Put the filenames in a structure
 filename.DTI_raw = F{strcmp(F(:,1),'DTI'),2};
 if FilterFlag == true
-    filename.DTI_filt = [F{strcmp(F(:,1),'DTI'),2}(1:end-7) '_LPCA.nii.gz'];
+    [path,file,ext] = fileparts(F{strcmp(F(:,1),'DTI'),2});
+    filename.DTI_filt = fullfile(F{strcmp(F(:,1),'ResultsPath'),2},[file(1:end-4) app '.nii.gz']);
 else
     filename.DTI_filt = [];
 end
 filename.bval      = F{strcmp(F(:,1),'bval'),2};
 filename.bvec      = F{strcmp(F(:,1),'bvec'),2};
 if BVEC_correction == true
-    filename.bvec_corr = [filename.bvec(1:end-5) '_corr.bvec'];
+    [path,file,ext] = fileparts(filename.bvec);
+    filename.bvec_corr = fullfile(F{strcmp(F(:,1),'ResultsPath'),2},[file '_corr' ext]);
 end
 filename.SRC       = F{strcmp(F(:,1),'SRC'),2};
 filename.FIB       = F{strcmp(F(:,1),'FIB'),2};

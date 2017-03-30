@@ -1,5 +1,5 @@
 clear
-addpath(genpath('muscle_DTI_toolbox'))
+addpath(genpath('../matlab_functions'))
 
 %% Set filenames for the example data
 % Always use full path names (not relative to current directory). You can
@@ -8,7 +8,8 @@ addpath(genpath('muscle_DTI_toolbox'))
 % fullfile for more info.
 % The extension for image data has to be .nii.gz and should be included in
 % the filename.
-datapath       = fullfile(pwd,'example_data'); 
+datapath       = fullfile(pwd,'data'); 
+results_path   = fullfile(pwd,'results'); % path
 DTI_filename   = fullfile(datapath,'CALF001_DTI.nii.gz'); 
 bval_filename  = fullfile(datapath,'CALF001_DTI.bval');
 bvec_filename  = fullfile(datapath,'CALF001_DTI.bvec');
@@ -23,7 +24,8 @@ bvec_filename  = fullfile(datapath,'CALF001_DTI.bvec');
 FilterFlag = true; 
 filename = Preprocessing_and_DTI_recon('DTI',DTI_filename,...
     'bval',bval_filename,'bvec',bvec_filename,...
-    'filter',FilterFlag);
+    'filter',FilterFlag,...
+    'ResultsPath',results_path);
 
 
 %% Create masks
@@ -36,7 +38,8 @@ label_filename = fullfile(datapath,'masks','CALF001_T1_anat_labels.nii.gz');
 % Make masks/surfaces for all labels present in the label file
 % Type help MakeSurfaceAndMasks for more information on how to use this
 % function.
-mask_filenames = MakeSurfaceAndMasks( label_filename,DTI_filename);
+mask_filenames = MakeSurfaceAndMasks( label_filename,DTI_filename,...
+    'ResultsPath',fullfile(results_path,'DTI_masks'));
 
 % Make a mask to exclude regions with FA values below/above the provided
 % threshold.
