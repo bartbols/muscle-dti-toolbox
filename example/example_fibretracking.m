@@ -9,7 +9,7 @@ addpath(genpath('../matlab_functions'))
 % This assumes that the data have been preprocessed and that masks were
 % created with 'example_preprocessing.m'.
 
-datapath   = fullfile(pwd,'data');
+datapath   = fullfile(pwd,'results');
 
 % Filenames for tractography
 % Name of the the fibre file created with DSI studio (the .fib.gz file that
@@ -22,12 +22,12 @@ TrackFileNames.Tracts  = fullfile(datapath,'tracts','CALF001_DTI_MG.mat');
 
 % Set the seed, boundary (TER=terminative region) and ROA (region of avoidance)
 % masks for fibre tractography.
-TrackFileNames.Seed       = fullfile(datapath,'masks','CALF001_DTI_MG_seed.nii.gz');
-TrackFileNames.TER        = fullfile(datapath,'masks','CALF001_DTI_MG_boundary.nii.gz');
-TrackFileNames.ROA        = fullfile(datapath,'masks','CALF001_DTI_LPCA_FA.nii.gz');
+TrackFileNames.Seed       = fullfile(datapath,'DTI_masks','CALF001_DTI_MG_seed.nii.gz');
+TrackFileNames.TER        = fullfile(datapath,'DTI_masks','CALF001_DTI_MG_boundary.nii.gz');
+TrackFileNames.ROA        = fullfile(datapath,'DTI_masks','CALF001_DTI_LPCA_FA.nii.gz');
 
 % Load the surface model
-SurfFilename     = fullfile(datapath,'masks','CALF001_DTI_MG.stl');
+SurfFilename     = fullfile(datapath,'DTI_masks','CALF001_DTI_MG.stl');
 SurfModel        = stlread(SurfFilename);
 
 %% Fibre track settings

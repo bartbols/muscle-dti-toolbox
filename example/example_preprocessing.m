@@ -27,7 +27,6 @@ filename = Preprocessing_and_DTI_recon('DTI',DTI_filename,...
     'filter',FilterFlag,...
     'ResultsPath',results_path);
 
-
 %% Create masks
 % The next lines of code will create masks at the resolution of the DTI scan that 
 % can be used for tractography. The tractography masks will be created 
@@ -45,16 +44,19 @@ mask_filenames = MakeSurfaceAndMasks( label_filename,DTI_filename,...
 % threshold.
 % Type help MakeFAmask for more information on how to use this function.
 FA_threshold = [0.1 0.5];
-filename.FA_mask = MakeFAmask(filename.FIB,FA_threshold);
+filename.FA_mask = MakeFAmask(filename.FIB,FA_threshold,...
+    fullfile(results_path,'DTI_masks','CALF001_DTI_LPCA_FA.nii.gz'));
 
 % Alternative options:
 % Make masks+surfaces for labels with the names in LabelNames
 % LabelNames = {'MG'};
 % mask_filenames = MakeSurfaceAndMasks( segm_filename,DTI_filename,...
-%     'LabelNames',LabelNames);
+%     'LabelNames',LabelNames,...
+%     'ResultsPath',fullfile(results_path,'DTI_masks'));
 
 % Make masks+surfaces for labels with the numbers in LabelNumbers
 % LabelNumbers = 1;
 % mask_filenames = MakeSurfaceAndMasks( segm_filename,DTI_filename,...
-%     'LabelNumbers',LabelNumbers);
+%     'LabelNumbers',LabelNumbers,...
+%     'ResultsPath',fullfile(results_path,'DTI_masks'));
 
