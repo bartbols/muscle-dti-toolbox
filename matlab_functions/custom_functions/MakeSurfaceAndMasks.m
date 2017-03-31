@@ -89,7 +89,7 @@ MakeSurface = p.Results.MakeSurface; % if true, surfaces are made
 MakeMasks   = p.Results.MakeMasks; % if true, masks are made
 
 %% Create results folder if it doesnt' exist
-if exist(p.Results.ResultsPath,'dir') ~= 2
+if exist(p.Results.ResultsPath,'dir') ~= 7
     mkdir(p.Results.ResultsPath)
     fprintf('Results directory created: %s\n',p.Results.ResultsPath)
 end

@@ -6,28 +6,28 @@ clear
 addpath(genpath('../matlab_functions'))
 
 %% Set some filenames
-% This assumes that the data have been preprocessed and that masks were
-% created with 'example_preprocessing.m'.
+% This assumes that the data have been preprocessed with 'example_preprocessing.m' 
+% and that masks were created with 'example_make_masks.m'.
 
-datapath   = fullfile(pwd,'results');
+results_path   = fullfile(pwd,'results','001');
 
 % Filenames for tractography
 % Name of the the fibre file created with DSI studio (the .fib.gz file that
 % is the result of Preprocessing_and_DTI_recon)
-TrackFileNames.fib     = fullfile(datapath,'CALF001_DTI_LPCA.fib.gz');
+TrackFileNames.FIB     = fullfile(results_path,'CALF001_DTI_LPCA.fib.gz');
 
 % Filename to which the tracts will be saved. Always include the file
 % extension .mat.
-TrackFileNames.Tracts  = fullfile(datapath,'tracts','CALF001_DTI_MG.mat');
+TrackFileNames.Tracts  = fullfile(results_path,'tracts','CALF001_DTI_MG.mat');
 
 % Set the seed, boundary (TER=terminative region) and ROA (region of avoidance)
 % masks for fibre tractography.
-TrackFileNames.Seed       = fullfile(datapath,'DTI_masks','CALF001_DTI_MG_seed.nii.gz');
-TrackFileNames.TER        = fullfile(datapath,'DTI_masks','CALF001_DTI_MG_boundary.nii.gz');
-TrackFileNames.ROA        = fullfile(datapath,'DTI_masks','CALF001_DTI_LPCA_FA.nii.gz');
+TrackFileNames.Seed       = fullfile(results_path,'DTI_masks','CALF001_DTI_MG_seed.nii.gz');
+TrackFileNames.TER        = fullfile(results_path,'DTI_masks','CALF001_DTI_MG_boundary.nii.gz');
+TrackFileNames.ROA        = fullfile(results_path,'DTI_masks','CALF001_DTI_LPCA_FA.nii.gz');
 
 % Load the surface model
-SurfFilename     = fullfile(datapath,'DTI_masks','CALF001_DTI_MG.stl');
+SurfFilename     = fullfile(results_path,'DTI_masks','CALF001_DTI_MG.stl');
 SurfModel        = stlread(SurfFilename);
 
 %% Fibre track settings
@@ -58,7 +58,7 @@ DTItracts = CalcArchitecture(DTItracts,SurfModel);
 % Calculate DTI measures (fractional anisotropy, mean diffusivity and
 % eigenvalues) for each tract. This will add the fields fa, md, lambda1,
 % lambda2 and lambda3 to DTI tracts.
-DTItracts = CalcDTI_indices(DTItracts,TrackFileNames.fib);
+DTItracts = CalcDTI_indices(DTItracts,TrackFileNames.FIB);
 
 % Save the fields in DTItracts as individual variables using the -struct option
 % for saving.
@@ -84,5 +84,5 @@ InspectTracts('Tracts',DTItracts,...
 % Alternatively, you can give the filenames of the DTItracts and surface 
 % model (instead of the structure arrays)
 
-handles = InspectTracts('Tracts',TrackFileNames.Tracts,...
-    'SurfModel',SurfFilename);
+% handles = InspectTracts('Tracts',TrackFileNames.Tracts,...
+%     'SurfModel',SurfFilename);

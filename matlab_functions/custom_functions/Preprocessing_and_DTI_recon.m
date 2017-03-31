@@ -109,14 +109,15 @@ if isempty(F{strcmp(F(:,1),'ResultsPath'),2})
         ResultsPath = uigetdir(pwd,'Select a directory where the results will be saved to');
     end
     F{strcmp(F(:,1),'ResultsPath'),2} = ResultsPath;
-    % Create the results path, if it doesn't exist already
-    if exist(ResultsPath,'dir') ~= 2
-        mkdir(ResultsPath)
-        fprintf('Results directory created: %s\n',ResultsPath)
-    end
 end  
 
-% Decide whether to filter or not
+% Create the results path, if it doesn't exist already
+ResultsPath = F{strcmp(F(:,1),'ResultsPath'),2};
+if exist(ResultsPath,'dir') ~= 2
+    mkdir(ResultsPath)
+    fprintf('Results directory created: %s\n',ResultsPath)
+end% Decide whether to filter or not
+
 FilterFlag      = F{strcmp(F(:,1),'filter'),2};
 if nargin == 0
     answer = questdlg('Do you want to filter the data?','To filter or not to filter',...

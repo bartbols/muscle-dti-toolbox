@@ -76,6 +76,9 @@ function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings )
 %     - changed input field in filename from .Source to .fib
 %     - Replaced fields OutputDir and OutputName in filename by the full
 %       tract filename in field 'tracts'
+% BB 31/03/2017: changed fieldname of the fibre-filename in structure
+% 'filename' from 'fib' to 'FIB'. The old usage with fib in small letters
+% is still compatible as well.
 % 
 % -------------------------------------------------------------------------
 
@@ -107,16 +110,21 @@ default.MaxTime      = 30;
 % fibres.
 CommandTxt = horzcat('dsi_studio --action=trk');
 
+% Change input .fib to .FIB, if only .fib (with small letters) is provided.
+if isfield(filename,'fib') && ~isfield(filename,'FIB')
+    filename.FIB = filename.fib;
+    filename = rmfield(filename,'fib');
+end
 % add the fibre file name (DSI-studio .fib-file)
-if isfield(filename,'fib')
-    if exist(filename.fib,'file') ~= 2
+if isfield(filename,'FIB')
+    if exist(filename.FIB,'file') ~= 2
         error('prog:input',...
             'fib file ''%s'' does not exist. Tracking cannot be started.',...
-            filename.fib)
+            filename.FIB)
     else
         % Add fibre filename to command
-        fprintf('%-20s: %s\n','fib',filename.fib)
-        CommandTxt = horzcat(CommandTxt,[' --source=' filename.fib]);
+        fprintf('%-20s: %s\n','fib',filename.FIB)
+        CommandTxt = horzcat(CommandTxt,[' --source=' filename.FIB]);
     end
 else
     error('fib file not defined. Tracking cannot be started.')
@@ -401,9 +409,9 @@ else
         % Read the voxelsize from the fib.gz file.
         % Unzip the .fib.gz file, read in, and delete the unzipped file
         % again.
-        gunzip(filename.fib)
-        tmp = load(filename.fib(1:end-3),'-mat');
-        delete(filename.fib(1:end-3))
+        gunzip(filename.FIB)
+        tmp = load(filename.FIB(1:end-3),'-mat');
+        delete(filename.FIB(1:end-3))
         voxelsize = tmp.voxel_size;
         clear tmp
         

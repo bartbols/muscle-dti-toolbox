@@ -8,8 +8,8 @@ addpath(genpath('../matlab_functions'))
 % fullfile for more info.
 % The extension for image data has to be .nii.gz and should be included in
 % the filename.
-datapath       = fullfile(pwd,'data'); 
-results_path   = fullfile(pwd,'results'); % path
+datapath       = fullfile(pwd,'data','001');   % raw data path for subject 1
+results_path   = fullfile(pwd,'results','001'); % results path for subject 1
 DTI_filename   = fullfile(datapath,'CALF001_DTI.nii.gz'); 
 bval_filename  = fullfile(datapath,'CALF001_DTI.bval');
 bvec_filename  = fullfile(datapath,'CALF001_DTI.bvec');
@@ -46,17 +46,4 @@ mask_filenames = MakeSurfaceAndMasks( label_filename,DTI_filename,...
 FA_threshold = [0.1 0.5];
 filename.FA_mask = MakeFAmask(filename.FIB,FA_threshold,...
     fullfile(results_path,'DTI_masks','CALF001_DTI_LPCA_FA.nii.gz'));
-
-% Alternative options:
-% Make masks+surfaces for labels with the names in LabelNames
-% LabelNames = {'MG'};
-% mask_filenames = MakeSurfaceAndMasks( segm_filename,DTI_filename,...
-%     'LabelNames',LabelNames,...
-%     'ResultsPath',fullfile(results_path,'DTI_masks'));
-
-% Make masks+surfaces for labels with the numbers in LabelNumbers
-% LabelNumbers = 1;
-% mask_filenames = MakeSurfaceAndMasks( segm_filename,DTI_filename,...
-%     'LabelNumbers',LabelNumbers,...
-%     'ResultsPath',fullfile(results_path,'DTI_masks'));
 
