@@ -127,7 +127,7 @@ elseif ~isempty(p.Results.LabelNumbers)
            LabelNumToProcess(idxNotPresent),LabelInfoFilename,LabelInfoFilename)
     end
     [~,idxToProcess] = ismember(LabelInfo{1},LabelNumToProcess);
-    
+    idxToProcess = find(idxToProcess);
 elseif ~isempty(p.Results.LabelNames)
     % Check if the label names that are provided for processing exist in
     % the label file
@@ -201,7 +201,7 @@ for CurrentIdx = idxToProcess'
         [status,cmdout] = system(commandTxt);
         
         if ~isempty(strfind(cmdout,'not recognized as an internal or external command'))
-            
+            error('Convert 3D not found. Please install convert 3D and add to the path.')
         end
 
         % Read into the workspace and delete the file

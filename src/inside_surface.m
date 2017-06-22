@@ -88,6 +88,7 @@ for i = 1 : size(pts,1)
     
     % Count how many times the surface was intersected
     nint = sum((S >= 0 & S <= 1 & T >= 0 & (S+T) <= 1) & R >= 0);
+    % return false if even, and true if odd
     IN(i) = logical(mod(nint,2));
     
 end

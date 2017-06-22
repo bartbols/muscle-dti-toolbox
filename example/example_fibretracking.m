@@ -1,9 +1,5 @@
 % Clear the workspace
 clear
-% Add the Muscle DTI toolbox to the MATLAB path. If you have done this
-% before, you don't have to do this again (but there is not problem doing
-% it again).
-addpath(genpath('../matlab_functions'))
 
 %% Set some filenames
 % This assumes that the data have been preprocessed with 'example_preprocessing.m' 

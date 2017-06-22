@@ -84,7 +84,6 @@ eigvec_map(:,:,:,3) = B * scaling;
 % Use all information from the DTI nifti file but overwrite the image data
 % with the eigenvector map.
 % DTI_nii.img = eigvec_map;
-% img_nii.img = flip(eigvec_map,1);
 % The second dimension needs to be flipped to have a good match in ITK-snap
 % between the anatomical data and the eigenvector map. I'm not sure if this
 % also means that the y-direction (or maybe x-direction?) needs to be
@@ -92,7 +91,15 @@ eigvec_map(:,:,:,3) = B * scaling;
 % segmentation in ITK-snap this doesn't really matter because there will be
 % good contrast in colour between tissues with different eigenvectors
 % anyway.
-DTI_nii.img = single(flip(eigvec_map,2));
+
+if DTI_nii.hdr.hist.srow_x(1) > 0
+    eigvec_map = flip(eigvec_map,1);
+end
+if DTI_nii.hdr.hist.srow_y(2) > 0
+    eigvec_map = flip(eigvec_map,2);
+end
+    
+DTI_nii.img = single(eigvec_map);
 DTI_nii.hdr.dime.dim(5) = 3;
 DTI_nii.hdr.dime.scl_slope = 1; %/scaling;
 DTI_nii.hdr.dime.scl_inter = 0;
