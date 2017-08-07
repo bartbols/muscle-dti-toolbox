@@ -137,9 +137,9 @@ for fibnr = 1:1:nFib
               polyval(polyder(coeff.z),coeff.t0)];
 %         d1 = d1 / norm(d1); 
 
-        if inside_surface(surf_model,p1) == 0
-            disp('point outside surface')
-        end
+%         if inside_surface(surf_model,p1) == 0
+%             disp('point outside surface')
+%         end
         
         tract_dir1 =  [polyval(coeff.x,1),polyval(coeff.y,1),polyval(coeff.z,1)] - p1;
         if sign(dot(d1,tract_dir1)) == 1

@@ -207,6 +207,19 @@ else
     fprintf('not defined. Continue without ROA.\n')
 end
 
+% Add the second ROA filename to the command, if it exists.
+fprintf('%-20s: ','ROA2: ')
+if isfield(filename,'ROA2')
+    fprintf('%s\n', filename.ROA2)
+    if exist(filename.ROA2,'file') ~= 2
+        fprintf('ROA2 file does not exist. Continue without ROA2.\n')
+    else
+        CommandTxt = horzcat(CommandTxt,[' --roa2='    filename.ROA2]);
+    end
+else
+    fprintf('not defined. Continue without ROA2.\n')
+end
+
 % Add the TER filename to the command, if it exists.
 fprintf('%-20s: ','TER: ')
 if isfield(filename,'TER')
@@ -332,7 +345,8 @@ tic % Start the timer
 % Call DSI studio to perform fibre tracking
 % The '&' must be added to the command so that DSI studio is running in the
 % background.
-[status,cmdout] = system([CommandTxt ' &']);
+[status,cmdout] = system(CommandTxt);
+disp(cmdout)
 
 % [status,cmdout] = system(CommandTxt);
 % if ~isempty(strfind(cmdout,'internal or external command'))
@@ -416,7 +430,11 @@ else
         clear tmp
         
     end
-    DTItracts.tracts_xyz  = bsxfun(@times,DTItracts.tracts,voxelsize');
+    % To convert from DSI studio voxel coordinates (which start indexing
+    % from (0,0,0), multiply by the voxelsize and add half a voxel to
+    % account for the offset.
+%     DTItracts.tracts_xyz  = bsxfun(@times,DTItracts.tracts,voxelsize');
+    DTItracts.tracts_xyz  = bsxfun(@plus,bsxfun(@times,DTItracts.tracts,voxelsize'),voxelsize'/2);
     DTItracts.length_mm   = (DTItracts.length-1) * TrackSettings.Stepsize;
     DTItracts.stepsize    = TrackSettings.Stepsize;
     

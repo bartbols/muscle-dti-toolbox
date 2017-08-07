@@ -63,7 +63,7 @@ system(commandTxt2);
 fa_map = load_untouch_nii([fib_filename '.fa0.nii.gz']);
 delete([fib_filename '.fa0.nii.gz'])
 fa_mask = fa_map;
-fa_mask.img = int16((fa_map.img < fa_threshold(1) | fa_map.img > fa_threshold(2)));
+fa_mask.img = cast((fa_map.img < fa_threshold(1) | fa_map.img > fa_threshold(2)),'like',fa_map.img);
 clear fa_map
 
 % Save the FA mask as a .nii.gz file
