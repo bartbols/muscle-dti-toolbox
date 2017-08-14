@@ -10,12 +10,14 @@ function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings )
 % INPUT:
 % 1) The structure array 'filename' that at least contains the fields:
 %    - FIB        : name of DSI studio fibre file (.fib or .fib.gz)
+%    - DTI        : name of DTI data (with original header)(.nii or .nii.gz)
 %    - Tracts     : full filename of the file to which tracts are saved
 %    - Seed       : filename of the seed file
 %    Optional fields:
 %    - ROI1 : filename of the first region of interest file
 %    - ROI2 : filename of a second region of interest file
 %    - ROA  : filename of the region of avoidance file
+%    - ROA2 : filename of second region of avoidance file
 %    - TER  : filename of terminative region file
 %
 %  2) The struct 'TrackSettings' that contains the following fields:
@@ -38,7 +40,6 @@ function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings )
 %                    search for fibers. After MaxTime seconds, the search 
 %                    is terminated: no tracts will be saved and the 
 %                    StopFlag is set to 0. Default 10 sec.
-%    - VoxelSize   : 1x3 array of the voxel size of the DTI scan.
 %
 %    For fields that are not present, default values are used. See default
 %    values below.
@@ -50,7 +51,8 @@ function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings )
 %            connected. See DSI studio documentation for a description of
 %            how 'length' and 'tracts' are formatted.
 %            - t_elapsed: time it took to find the tracts (in seconds).
-%            - tracts_xyz: points on the tract segments in global coordinates
+%            - tracts_xyz: points on the tract segments in global
+%            coordinates 
 %            - length_mm: tract lengths in millimetres
 %            - stepsize: stepsize for fibre tracking in mm
 %
@@ -79,6 +81,10 @@ function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings )
 % BB 31/03/2017: changed fieldname of the fibre-filename in structure
 % 'filename' from 'fib' to 'FIB'. The old usage with fib in small letters
 % is still compatible as well.
+% BB 14/08/2017: Calculates the tract point in global coordinates by
+% reading in the header information from the DTI file. In addition to the
+% fibre-file, the DTI file should now also be provided (as the field 'DTI'
+% in the structure 'filename')
 % 
 % -------------------------------------------------------------------------
 
@@ -414,29 +420,24 @@ else
     
     DTItracts.fibindex = fibindex;
     
-    % Convert tract points from voxel coordinates to xyz coordinates
-    if isfield(TrackSettings,'VoxelSize')
-        [n,m] = size(TrackSettings.VoxelSize);
-        if n>m; TrackSettings.VoxelSize = TrackSettings.VoxelSize';end
-        voxelsize = TrackSettings.VoxelSize;
-    else
-        % Read the voxelsize from the fib.gz file.
-        % Unzip the .fib.gz file, read in, and delete the unzipped file
-        % again.
-        gunzip(filename.FIB)
-        tmp = load(filename.FIB(1:end-3),'-mat');
-        delete(filename.FIB(1:end-3))
-        voxelsize = tmp.voxel_size;
-        clear tmp
-        
-    end
-    % To convert from DSI studio voxel coordinates (which start indexing
-    % from (0,0,0), multiply by the voxelsize and add half a voxel to
-    % account for the offset.
-%     DTItracts.tracts_xyz  = bsxfun(@times,DTItracts.tracts,voxelsize');
-    DTItracts.tracts_xyz  = bsxfun(@plus,bsxfun(@times,DTItracts.tracts,voxelsize'),voxelsize'/2);
-    DTItracts.length_mm   = (DTItracts.length-1) * TrackSettings.Stepsize;
+    % Convert tract points from voxel coordinates to global coordinates.
+    % Get transformation from voxel to global coordinates from the
+    % header of the DTI file.
+    DTI = load_untouch_nii(filename.DTI);
+    T = [DTI.hdr.hist.srow_x;...
+         DTI.hdr.hist.srow_y;...
+         DTI.hdr.hist.srow_z;...
+         0 0 0 1];
+     
+    % Flip the second dimension of tracts. I think this is because DSI
+    % studio works in a different coordinate system. This may need further
+    % checking but works well for the data we have collected so far.
+    DTItracts.tracts(2,:) = (DTI.hdr.dime.dim(3)-1) - DTItracts.tracts(2,:);
+    tracts_glob = T * [DTItracts.tracts;ones(1,size(DTItracts.tracts,2))];
+    DTItracts.tracts_xyz = tracts_glob(1:3,:);
+
     DTItracts.stepsize    = TrackSettings.Stepsize;
+    DTItracts.length_mm   = (DTItracts.length-1) * DTItracts.stepsize;
     
     save(filename.Tracts,'-struct','DTItracts');
 end

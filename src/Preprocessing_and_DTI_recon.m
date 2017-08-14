@@ -213,7 +213,7 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
         DWIdenoised = DWIDenoisingLPCA(DWI_data.img, 1, rician, nbthread, verbose);
         
         % Save the filtered data as a nifti-file again.
-        DWI_data.img = int16(DWIdenoised);
+        DWI_data.img = cast(DWIdenoised,'like',DWI_data.img);
         save_untouch_nii(DWI_data,filename.DTI_filt)
     else
         warning('DTI data is not filtered')
@@ -287,7 +287,7 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
     % thresholding.
     mask = DWI_data;
     dim = size(DWI_data.img);
-    mask.img = int16(ones(dim(1:3)));
+    mask.img = cast(ones(dim(1:3)),'like',DWI_data.img);
     voxel_size = DWI_data.hdr.dime.pixdim(2:4);
     mask.hdr.dime.dim(1) = 3;
     mask.hdr.dime.dim(5) = 1;

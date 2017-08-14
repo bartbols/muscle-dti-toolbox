@@ -36,17 +36,20 @@ function handles = InspectTracts(varargin)
 % - Selection     : vector of indices of fibres to plot. If not 
 %                   provided, all fibres are displayed. Both row and column
 %                   vectors are accepted.
+% - PlotStats     : also plots the distributino of the parameters in
+%                   subplots. Default: true
+% - fraction      : fraction (0 < fraction <= 1) of total tracts to plot. Default: 1 (=100%)
 %
 % ----------------- OUTPUT -----------------
 % handles : handles to the plot objects
 %
 % Examples:
 
-% handles = PlotTracts('Tracts',DTItracts);
+% handles = InspectTracts('Tracts',DTItracts);
 %
-% handles = PlotTracts('Tracts',tract_filename,'SurfModel,surf_filename);
+% handles = InspectTracts('Tracts',tract_filename,'SurfModel,surf_filename);
 %
-% handles = PlotTracts(DTItracts,'ToPlot',{'raw','poly','cut'},...
+% handles = InspectTracts('Tracts',DTItracts,'ToPlot',{'raw','poly','cut'},...
 %                'Color',{'r','g','c'},'SurfModel',surf_model,...
 %                'SurfModelColor','r','SurfModelAlpha',0.3)
 %% Check input
@@ -61,6 +64,7 @@ addParameter(p,'Selection',[],@(x) isnumeric(x))
 addParameter(p,'SurfModelColor','y',@(x) ischar(x) || isnumeric(x))
 addParameter(p,'SurfModelAlpha',0.25,@(x)validateattributes(x,{'numeric'},{'scalar'}))
 addParameter(p,'PlotStats',true,@(x) x==0 || x==1 || islogical(x) )
+addParameter(p,'fraction',1,@(x) validateattributes(x,{'numeric'},{'scalar','>',0,'<=',1}))
 
 parse(p,varargin{:})
 ToPlot          = p.Results.ToPlot;
@@ -72,6 +76,7 @@ LineWidth       = p.Results.LineWidth;
 PlotStats       = p.Results.PlotStats;
 Tracts          = p.Results.Tracts;
 Selection       = p.Results.Selection;
+fraction        = p.Results.fraction;
 
 % If input1 is not provided, select a file from a dialog box.
 if isempty(Tracts)
@@ -87,6 +92,8 @@ if isstruct(Tracts)
 else
     if exist(Tracts,'file') == 2
         DTItracts      = load(Tracts);
+        fullfilename = Tracts;
+        clear Tracts
     else
         error('%s not found.',Tracts)
     end
@@ -138,6 +145,15 @@ hold on
 % Convert 'option' to cell array if necessary
 if ischar(ToPlot);ToPlot = {ToPlot};end
 
+
+% Reduce the tracts for plotting to the fraction of the total number 
+% of tracts specified by 'fraction'.
+if fraction == 1
+    SelectionPlot = Selection;
+else
+    tmp = randperm(length(Selection),round(fraction*length(Selection)));
+    SelectionPlot = Selection(tmp);
+end
 k=0;
 for opt = ToPlot
     k = k + 1;
@@ -146,7 +162,7 @@ for opt = ToPlot
         case 'raw'
             % Plot the raw tracts
             PlotX = [];PlotY =[];PlotZ = [];
-            for fibnr = Selection
+            for fibnr = SelectionPlot
                 PlotX = [PlotX DTItracts.tracts_xyz(1,min(DTItracts.fibindex(fibnr,1:2)):max(DTItracts.fibindex(fibnr,1:2))) NaN];
                 PlotY = [PlotY DTItracts.tracts_xyz(2,min(DTItracts.fibindex(fibnr,1:2)):max(DTItracts.fibindex(fibnr,1:2))) NaN];
                 PlotZ = [PlotZ DTItracts.tracts_xyz(3,min(DTItracts.fibindex(fibnr,1:2)):max(DTItracts.fibindex(fibnr,1:2))) NaN];
@@ -157,7 +173,7 @@ for opt = ToPlot
             % Plot the truncated tracts
             %             nFib = size(DTItracts.fibindex_trunc,1);
             PlotX = [];PlotY =[];PlotZ = [];
-            for fibnr = Selection
+            for fibnr = SelectionPlot
                 PlotX = [PlotX DTItracts.tracts_xyz(1,min(DTItracts.fibindex_trunc(fibnr,1:2)):max(DTItracts.fibindex_trunc(fibnr,1:2))) NaN];
                 PlotY = [PlotY DTItracts.tracts_xyz(2,min(DTItracts.fibindex_trunc(fibnr,1:2)):max(DTItracts.fibindex_trunc(fibnr,1:2))) NaN];
                 PlotZ = [PlotZ DTItracts.tracts_xyz(3,min(DTItracts.fibindex_trunc(fibnr,1:2)):max(DTItracts.fibindex_trunc(fibnr,1:2))) NaN];
@@ -168,7 +184,7 @@ for opt = ToPlot
             % Plot only the parts of the fascicles that were cut off
             nFib = size(DTItracts.fibindex_trunc,1);
             PlotX = [];PlotY =[];PlotZ = [];
-            for fibnr = Selection
+            for fibnr = SelectionPlot
                 PlotX = [PlotX DTItracts.tracts_xyz(1,min(DTItracts.fibindex(fibnr,1:2)):(min(DTItracts.fibindex_trunc(fibnr,1:2))-1)) NaN,...
                     DTItracts.tracts_xyz(1,(max(DTItracts.fibindex_trunc(fibnr,1:2))+1):max(DTItracts.fibindex(fibnr,1:2))) NaN];
                 PlotY = [PlotY DTItracts.tracts_xyz(2,min(DTItracts.fibindex(fibnr,1:2)):(min(DTItracts.fibindex_trunc(fibnr,1:2))-1)) NaN,...
@@ -185,7 +201,7 @@ for opt = ToPlot
             else
                 error('''PolyCoeff'' not found as a field in DTITracts. Polynomials fits cannot be plotted.')
             end
-            for fibnr = Selection
+            for fibnr = SelectionPlot
                 if isempty(P(fibnr).x);continue;end
                 tmpX = [DTItracts.endpoints(fibnr,1,1) polyval(P(fibnr).x,linspace(P(fibnr).t0,P(fibnr).t1,100)) DTItracts.endpoints(fibnr,2,1)];
                 tmpY = [DTItracts.endpoints(fibnr,1,2) polyval(P(fibnr).y,linspace(P(fibnr).t0,P(fibnr).t1,100)) DTItracts.endpoints(fibnr,2,2)];
@@ -267,7 +283,7 @@ if PlotStats == true
         
         % Check if variable exist. If not, continue with next.
         idx = strcmp(varNames,VARS{k,4});
-        if ~any(idx);
+        if ~any(idx)
             title([VARS{k,1} ' data not available'])
             %             subplotnr = subplotnr - 1;
             continue

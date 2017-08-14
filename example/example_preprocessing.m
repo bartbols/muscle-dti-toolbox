@@ -1,5 +1,6 @@
 clear
-addpath(genpath('../matlab_functions'))
+addpath(genpath('../bin'))
+addpath(genpath('../src'))
 
 %% Set filenames for the example data
 % Always use full path names (not relative to current directory). You can
@@ -26,25 +27,3 @@ filename = Preprocessing_and_DTI_recon('DTI',DTI_filename,...
     'bval',bval_filename,'bvec',bvec_filename,...
     'filter',FilterFlag,...
     'ResultsPath',results_path);
-
-%% Create masks
-% The next lines of code will create masks at the resolution of the DTI scan that 
-% can be used for tractography. The tractography masks will be created 
-% from the muscle segmentation of the anatomical scan, which will be
-% downsampled to match the DTI resolution.
-label_filename = fullfile(datapath,'masks','CALF001_T1_anat_labels.nii.gz');
-
-% Make masks/surfaces for all labels present in the label file
-% Type help MakeSurfaceAndMasks for more information on how to use this
-% function.
-mask_filenames = MakeSurfaceAndMasks( label_filename,DTI_filename,...
-    'ResultsPath',fullfile(results_path,'DTI_masks'));
-
-% Make a mask to exclude regions with FA values below/above the provided
-% threshold.
-% Type help MakeFAmask for more information on how to use this function.
-FA_threshold = [0.1 0.5];
-filename.FA_mask = MakeFAmask(filename.FIB,FA_threshold,...
-    'ResultsPath',fullfile(results_path,'DTI_masks'),...
-    'filename','CALF001_DTI_LPCA_FA.nii.gz');
-

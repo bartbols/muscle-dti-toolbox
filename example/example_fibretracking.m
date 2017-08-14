@@ -11,6 +11,7 @@ results_path   = fullfile(pwd,'results','001');
 % Name of the the fibre file created with DSI studio (the .fib.gz file that
 % is the result of Preprocessing_and_DTI_recon)
 TrackFileNames.FIB     = fullfile(results_path,'CALF001_DTI_LPCA.fib.gz');
+TrackFileNames.DTI     = fullfile(results_path,'CALF001_DTI_LPCA.nii.gz');
 
 % Filename to which the tracts will be saved. Always include the file
 % extension .mat.
@@ -37,6 +38,7 @@ TrackSettings.SeedCount    = [];
 TrackSettings.MaxAngle     = 10;
 TrackSettings.Smoothing    = 0;
 TrackSettings.MaxTime      = 30;
+
 
 %% Perform fibre tracking, truncation and extrapolation
 % Type help TrackFibres for more information on how to use this function.
