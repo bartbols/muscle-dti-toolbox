@@ -213,6 +213,9 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
         DWIdenoised = DWIDenoisingLPCA(DWI_data.img, 1, rician, nbthread, verbose);
         
         % Save the filtered data as a nifti-file again.
+        % Make NaN's zeros
+        DWIdenoised(isnan(DWIdenoised)) = 0;
+        
         DWI_data.img = cast(DWIdenoised,'like',DWI_data.img);
         save_untouch_nii(DWI_data,filename.DTI_filt)
     else
@@ -244,42 +247,6 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
         filename.SRC);
 %     
     [status,cmdout] = system(commandTxt,'-echo');
-    
-%     % Make .src.gz file directly from MATLAB
-%     src_new.voxel_size = DWI_data.hdr.dime.pixdim(2:4);
-%     src_new.dimension  = DWI_data.hdr.dime.dim(2:4);
-%     
-%     bval = load(filename.bval,'-ascii');
-%     if BVEC_correction == true
-%         src_new.b_table = [bval;bvec_corr];
-%     else
-%         bvec = load(filename.bvec);
-%         src_new.b_table = [bval;bvec];
-%     end
-%     
-% %     % Decide which dimensions to flip based on the information in the srow_
-% %     % header entries.
-% %     % !!! the next has not been tested yet!!!
-% %     flipx=false;flipy=false;flipz=false;
-% %     bvec_new = bvec_corr;
-% %     if DWI_data.hdr.hist.srow_x(1) < 0;flipx = true;bvec_new(1,:) = -bvec_new(1,:);end
-% %     if DWI_data.hdr.hist.srow_y(2) < 0;flipy = true;bvec_new(2,:) = -bvec_new(2,:);end
-% %     if DWI_data.hdr.hist.srow_z(3) < 0;flipz = true;bvec_new(3,:) = -bvec_new(3,:);end
-%     
-%     for i = 1 : size(DWI_data.img,4)
-%         data = double(DWI_data.img(:,:,:,i));
-%         
-% %     % !!! this code has not been tested yet!!!
-% %         if flipx==true;data = flip(data,1);end
-% %         if flipy==true;data = flip(data,2);end
-% %         if flipz==true;data = flip(data,3);end
-%         
-%         eval(['src_new.image' int2str(i-1) '=data(:)'';'])
-%     end
-% 
-%     save(filename.SRC(1:end-3),'-struct','src_new','-v4')
-%     gzip(filename.SRC(1:end-3))
-%     delete(filename.SRC(1:end-3));
     
 %% ---- Create fib file  ----    
     % Before fibre reconstruction, a mask with only 1's with the

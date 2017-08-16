@@ -206,8 +206,8 @@ try
         save_untouch_nii(mask,fullfile(tmpdir,'mask.nii.gz')); % has dimensions of anatomical scan
         
         if MakeSurface == true
-            % Make a file with isotropic dimensions of 1x1x1mm for surface model generation.
-            commandTxt = sprintf('c3d -int 1 %s -resample-mm 1.0x1.0x1.0mm -o %s',...
+            % Make a file with isotropic dimensions for surface model generation.
+            commandTxt = sprintf('c3d -int 3 %s -resample-mm 1.5x1.5x1.5mm -o %s',...
                 fullfile(tmpdir,'mask.nii.gz'),fullfile(tmpdir,'mask_iso.nii.gz'));
             [status,cmdout] = system(commandTxt);
             % Check if Convert 3D is installed.
@@ -225,22 +225,28 @@ try
             opt.maxsurf = 1;
             method = 'cgalsurf';
             
-            [FV.vertices,FV.faces]=v2s(mask_iso.img,0.7,opt,method);
+            binary_mask = mask_iso.img;
             
-            % The following offset is required to have the surface model
-            % represented in the global coordinate system.
-            FV.vertices = FV.vertices - 0.5;
+            [FV.vertices,FV.faces]=v2s(binary_mask,0.5,opt,method);
+            
             [FV.vertices,FV.faces]   = surfreorient(FV.vertices,FV.faces);
             
             % Apply some smoothing
             [conn,connnum,count] = meshconn(FV.faces,size(FV.vertices,1));
-            FV.vertices = smoothsurf(FV.vertices,[],conn,5,0.1,'laplacian');
+%             FV.vertices = smoothsurf(FV.vertices,[],conn,10,0.1,'laplacian');
+            FV.vertices = smoothsurf(FV.vertices,[],conn,50,0.7,'lowpass');
             
             % Transform to global coordinates
+            % An offset of 1/2 voxel should be applied to have the surface
+            % model in the correct coordinate system after transformation
+            % to global coordinates (because voxel coordinates present the
+            % centre of the voxel, not the edge like v2s assumes).
+            FV.vertices = FV.vertices - 0.5;
+            
             T = [mask_iso.hdr.hist.srow_x;...
-                mask_iso.hdr.hist.srow_y;...
-                mask_iso.hdr.hist.srow_z;...
-                0 0 0 1];
+                 mask_iso.hdr.hist.srow_y;...
+                 mask_iso.hdr.hist.srow_z;...
+                 0 0 0 1];
             
             tf = T * [FV.vertices ones(size(FV.vertices,1),1)]';
             FV.vertices = tf(1:3,:)';

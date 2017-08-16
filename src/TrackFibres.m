@@ -432,8 +432,9 @@ else
     % Flip the second dimension of tracts. I think this is because DSI
     % studio works in a different coordinate system. This may need further
     % checking but works well for the data we have collected so far.
-    DTItracts.tracts(2,:) = (DTI.hdr.dime.dim(3)-1) - DTItracts.tracts(2,:);
-    tracts_glob = T * [DTItracts.tracts;ones(1,size(DTItracts.tracts,2))];
+    tracts = DTItracts.tracts;
+    tracts(2,:) = (DTI.hdr.dime.dim(3)-1) - tracts(2,:);
+    tracts_glob = T * [tracts;ones(1,size(tracts,2))];
     DTItracts.tracts_xyz = tracts_glob(1:3,:);
 
     DTItracts.stepsize    = TrackSettings.Stepsize;
