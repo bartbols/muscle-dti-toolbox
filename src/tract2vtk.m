@@ -16,7 +16,8 @@ function tract2vtk(DTItracts,vtk_filename,varargin)
 %
 % - DTItracts : a structure array with the DTItracts. Alternatively, a
 %               MATLAB tract-filename (including extension '.mat') can be 
-%               provided as well.
+%               provided as well. If a n x 1 structure is provided, the
+%               data from all DTItracts are combined in one file.
 % - vtk_filename: ASCII vtkPolydata file to which the data will be written.
 %                 Include '.vtk' in the filename.
 % ----- OPTIONAL -----
@@ -75,11 +76,10 @@ if ~isstruct(DTItracts)
     else
         error('File not found: %s\nNo VTK-file was written.\n', DTItracts)
     end
-      
 end
 
 %% Select data from DTItracts for plotting
-nFiles = length(DTItracts);
+nFiles = length(DTItracts); % dimensionality of DTItracts
 SEL = cell(nFiles,1);
 for d = 1 : nFiles
     if isempty(selection)
@@ -102,18 +102,20 @@ for d = 1 : nFiles
     P = DTItracts(d).PolyCoeff;
     nTracts = length(SEL{d});
 
-    ns = 10; % number of points to sample along the polynomial curve
+    ns = 20; % number of points to sample along the polynomial curve
     for j = 1 : nTracts
         i = SEL{d}(j);
         switch char(towrite)
             case 'raw'
+                % get point data from raw fibre tracts
                 sel = min(DTItracts(d).fibindex(i,:)):max(DTItracts(d).fibindex(i,:));
                 newpoints = DTItracts(d).tracts_xyz(:,sel);
             case 'trunc'
+                % get point data from truncated fibre tracts
                 sel = min(DTItracts(d).fibindex_trunc(i,:)):max(DTItracts(d).fibindex_trunc(i,:));
                 newpoints = DTItracts(d).tracts_xyz(:,sel);
             case 'poly'
-                % (get point_data from polynomials + extensions)
+                % get point_data from polynomials + extensions
                 X = [DTItracts(d).endpoints(i,1,1) polyval(P(i).x,linspace(P(i).t0,P(i).t1,ns)) DTItracts(d).endpoints(i,2,1)];
                 Y = [DTItracts(d).endpoints(i,1,2) polyval(P(i).y,linspace(P(i).t0,P(i).t1,ns)) DTItracts(d).endpoints(i,2,2)];
                 Z = [DTItracts(d).endpoints(i,1,3) polyval(P(i).z,linspace(P(i).t0,P(i).t1,ns)) DTItracts(d).endpoints(i,2,3)];
