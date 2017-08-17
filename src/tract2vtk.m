@@ -22,13 +22,22 @@ function tract2vtk(DTItracts,vtk_filename,varargin)
 %                 Include '.vtk' in the filename.
 % ----- OPTIONAL -----
 % Optional inputs are provided as pairs of 'ParameterName',<value> (e.g.
-% 'ext_threshold',40)
+% 'pct_threshold',40)
 %
-% - ext_threshold: If provided, all fibres from the DTItracts with percentage
-%                  extensions larger than this threshold are excluded.
-%                  Default = [] (all fibres are included)
+% - pct_threshold: If provided, all fibres from the DTItracts with percentage
+%                  extrapolations larger than this threshold are excluded.
+%                  Default = [] (no threshold is applied)
+% - mm_threshold:  If provided, all fibres from the DTItracts with
+%                  extrapolations in mm larger than this threshold are 
+%                  excluded.
+%                  Default = [] (no threshold is applied)
 % - selection    : List of indices of tracts to be included in the .vtk
-%                  file. Default: [] (all fibres are included)
+%                  file. Default: [].(i.e. all fibres are included, except 
+%                  if pct_threshold is defined as well)/
+%                  If multiple DTI tracts are provided, selection should be
+%                  a cell with the same dimensions as DTItracts in which
+%                  each element 
+%              
 % - ToWrite      : Tract data to be written to vtk-file:
 %                  - 'raw': raw tracts
 %                  - 'trunc': truncated tracts
@@ -43,32 +52,40 @@ function tract2vtk(DTItracts,vtk_filename,varargin)
 % - ParaView     : true/false. Open the .vtk file in ParaView. Only works 
 %                  if ParaView is installed and added to the path.
 %                  Default: false
+% - Title        : title of VTK-file. Default: 'Tract data from MATLAB'
 
 % Read inputs 
+tic
 default_clist = {'fibrelength','penangle','curvature',...
     'pennation1','pennation2','pct_ext','fa','md','lambda1','lambda2','lambda3'};
+
 p = inputParser;
 addRequired(p,'DTItracts')
 addRequired(p,'vtk_filename',@(x) contains(x,'.vtk'))
-addParameter(p,'ext_threshold',[],@isnumeric)
-addParameter(p,'selection',[],@(x) isnumeric(x))
+addParameter(p,'pct_threshold',[],@isnumeric)
+addParameter(p,'mm_threshold',[],@isnumeric)
+addParameter(p,'selection',[],@(x) isnumeric(x)||iscell(x))
 addParameter(p,'ToWrite','poly',@(x)contains(x,{'poly','raw','trunc'},'IgnoreCase',true))
 addParameter(p,'ColorData',default_clist,@(x) iscell(x)||ischar(x))
 addParameter(p,'ParaView',false,@(x) islogical(x)||x==0||x==1)
+addParameter(p,'Title','Tract data from MATLAB',@(x) ischar(x))
 parse(p,DTItracts,vtk_filename,varargin{:});
 
-ext_threshold = p.Results.ext_threshold;
+pct_threshold = p.Results.pct_threshold;
+mm_threshold  = p.Results.mm_threshold;
 selection     = p.Results.selection;
 towrite       = p.Results.ToWrite;
 color_list    = p.Results.ColorData;
 ParaView      = p.Results.ParaView;
+title_txt     = p.Results.Title;
 
 if ischar(color_list)
     color_list = cellstr(color_list);
 end
 
 % Check if structure or filename is provided
-if ~isstruct(DTItracts)
+if ischar(DTItracts)
+    % filename is provided
     if exist(DTItracts,'file') == 2
         fprintf('DTItracts loading from: %s ...',DTItracts)
         DTItracts = load(DTItracts);
@@ -76,31 +93,61 @@ if ~isstruct(DTItracts)
     else
         error('File not found: %s\nNo VTK-file was written.\n', DTItracts)
     end
+elseif iscell(DTItracts)
+    % list of filenames is provided
+    filenames = DTItracts;
+    clear DTItracts
+    for d = 1 : length(filenames)
+        if exist(filenames{d},'file') == 2
+            fprintf('DTItracts loading from: %s ...',filenames{d})
+            DTItracts(d) = load(filenames{d});
+            fprintf(' completed.\n')
+        else
+            error('File not found: %s\nNo VTK-file was written.\n', filenames{d})
+        end
+    end
+    
 end
 
 %% Select data from DTItracts for plotting
-nFiles = length(DTItracts); % dimensionality of DTItracts
+
+fprintf('---------------- tract2vtk --------------------\n')
+nFiles = numel(DTItracts); % number of DTItracts
+fprintf('Number of tract sets provided: %d\n',nFiles)
 SEL = cell(nFiles,1);
 for d = 1 : nFiles
+    % Check if selection is defined
     if isempty(selection)
+        % ... if not defined, include all fibres.
         SEL{d} = 1 : size(DTItracts(d).fibindex,1);
     else
         SEL{d} = selection;
     end
-
-    if ~isempty(ext_threshold)
-        SEL{d} = find(DTItracts(d).pct_ext(SEL{d}) < ext_threshold);
+    
+    % Exclude fibres based on percentage extrapolations
+    if ~isempty(pct_threshold)
+        SEL{d}(DTItracts(d).pct_ext(SEL{d}) > pct_threshold | isnan(DTItracts(d).pct_ext(SEL{d})) ) = [];
     end
+
+    % Exclude fibres based on absolute extrapolations
+    if ~isempty(mm_threshold)
+        SEL{d}(nansum(DTItracts(d).ext(SEL{d},:),2) > mm_threshold) = [];
+    end
+    
+    fprintf('A total of %d fibres (%.1f%% of total) are included for DTItracts(%d).\n',...
+        numel(SEL{d}),...
+        numel(SEL{d})/size(DTItracts(d).fibindex,1)*100,...
+        d)
+        
 end
 %% POINT_DATA
 % Make arrays with only the selected datapoints
 points = [];
 t=0;
-fprintf('------------------------------------------------\n')
 fprintf('Fibre type written to file: %s\n',char(towrite))
 for d = 1 : nFiles
     P = DTItracts(d).PolyCoeff;
-    nTracts = length(SEL{d});
+    nTracts = numel(SEL{d});
 
     ns = 20; % number of points to sample along the polynomial curve
     for j = 1 : nTracts
@@ -136,7 +183,7 @@ fid = fopen(vtk_filename, 'w');
 % Write the version information 
 fprintf(fid, '# vtk DataFile Version 3.0\n');
 % Add a title
-fprintf(fid, 'Tract data from MATLAB\n');
+fprintf(fid, '%s\n',title_txt);
 fprintf(fid, 'ASCII\n');
 % Define what data this vtk file containts (polydata)
 fprintf(fid, 'DATASET POLYDATA\n');
@@ -171,7 +218,7 @@ fprintf(' completed.\n')
 % Check if variables in the color list are fields in DTItracts.
 
 counter = 0;
-for c = 1 : length(color_list)
+for c = 1 : numel(color_list)
     name = color_list{c};    
     if contains(name,{'pennation1','pennation2'})
         if ~isfield(DTItracts(1),'penangle')
@@ -239,7 +286,6 @@ end
 fclose(fid);
 fprintf('\nFibres succesfully written to %s\n',vtk_filename)
 fprintf('File contains %d fibres, %d points and %d scalar indices\n',nTracts,nPoints,counter)
-fprintf('------------------------------------------------\n')
 
 % Open the file in ParaView, if ParaView is installed and added to the path
 if ParaView == true
@@ -252,4 +298,7 @@ if ParaView == true
     end
 end
 
+t_elapsed = toc;
+fprintf('Total time to write vtk-file: %.1f seconds\n',t_elapsed)
+fprintf('------------------------------------------------\n')
 end % of function
