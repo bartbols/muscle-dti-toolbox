@@ -217,6 +217,12 @@ fprintf(' completed.\n')
 
 % Check if variables in the color list are fields in DTItracts.
 
+% If multiple DTI tracts are combined in one vtk-file, also number the
+% fibres with the file number they originate from.
+if nFiles > 1
+    color_list{end+1} = 'muscle_nr';
+end
+
 counter = 0;
 for c = 1 : numel(color_list)
     name = color_list{c};    
@@ -226,7 +232,7 @@ for c = 1 : numel(color_list)
             continue
         end
     else
-        if ~isfield(DTItracts(1),name)
+        if ~isfield(DTItracts(1),name) && ~strcmp(name,'muscle_nr')
             fprintf('%s is not a field in DTItracts. Color data not written.\n',name)
             continue
         end
@@ -258,6 +264,8 @@ for c = 1 : numel(color_list)
                 value_per_fibre = DTItracts(d).lambda2(SEL{d});
             case 'lambda3'
                 value_per_fibre = DTItracts(d).lambda3(SEL{d});
+            case 'muscle_nr'
+                value_per_fibre = ones(length(SEL{d}),1)*d;
         end
         V = [V;value_per_fibre];
     end
@@ -269,14 +277,21 @@ for c = 1 : numel(color_list)
     end
     nScalars = 1;
     scalar_value = color_data;
-    spec  = [repmat(['%0.',precision,'f '],1,nScalars) ' \n'];
+%     spec  = [repmat(['%0.',precision,'f '],1,nScalars) ' \n'];
+    if strcmp(name,'muscle_nr')
+        spec = '%d\n';
+        cl = 'int';
+    else
+        spec  = '%.3f\n';
+        cl = 'float';
+    end
     if counter == 0
         % Only write 'POINT_DATA' once
         fprintf(fid, 'POINT_DATA %d\n',nPoints);
         first = false;
     end
 %     fprintf(fid, 'SCALARS %s float %d\n',name,nScalars); %ASCII header
-    fprintf(fid, 'SCALARS %s float\n',name); %ASCII header
+    fprintf(fid, 'SCALARS %s %s\n',name,cl); %ASCII header
     fprintf(fid, 'LOOKUP_TABLE default\n'); %ASCII header
     fprintf(fid,spec,scalar_value);
     fprintf(' completed.\n')
