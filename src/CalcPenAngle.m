@@ -44,8 +44,7 @@ if ~isfield(surf_model,'normals')
     surf_model.normals = facenormals(surf_model);
 end
 
-% Select triangles within 2.5 mm of the current point
-radius = 2.5;
+% Select triangles within the selected radius around the end point
 nFibres = size(DTItracts.endpoints,1);
 penangle = NaN(nFibres,2);
 for fibnr = 1:nFibres

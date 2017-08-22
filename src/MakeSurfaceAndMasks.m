@@ -251,6 +251,9 @@ try
             tf = T * [FV.vertices ones(size(FV.vertices,1),1)]';
             FV.vertices = tf(1:3,:)';
             
+            % Flip the normals
+            FV.faces(:,[1 2]) = FV.faces(:,[2 1]);
+            
             stlwrite(filename(c).surface,FV);
             fprintf('Surface saved as %s\n',filename(c).surface)
             clear FV

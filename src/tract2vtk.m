@@ -288,7 +288,6 @@ for c = 1 : numel(color_list)
     if counter == 0
         % Only write 'POINT_DATA' once
         fprintf(fid, 'POINT_DATA %d\n',nPoints);
-        first = false;
     end
 %     fprintf(fid, 'SCALARS %s float %d\n',name,nScalars); %ASCII header
     fprintf(fid, 'SCALARS %s %s\n',name,cl); %ASCII header

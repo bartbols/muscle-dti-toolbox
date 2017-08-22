@@ -119,12 +119,9 @@ for fibnr = 1:1:nFib
     coeff.t1 = nPoints-1;   
     PolyCoeff(fibnr,1) = coeff;            
     
-%     if nargout > 4
     % Calculate residual distance of data points to polynomial fit
     [~,dist] = FindNearestT(coeff,tractpoints);
     residual(fibnr) = abs(mean(dist));
-
-%     end
    
 % Find projection of linearly extrapolated line from the endpoints to the
 % surface model
