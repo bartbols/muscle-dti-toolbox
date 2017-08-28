@@ -39,6 +39,10 @@ function handles = InspectTracts(varargin)
 % - PlotStats     : also plots the distributino of the parameters in
 %                   subplots. Default: true
 % - fraction      : fraction (0 < fraction <= 1) of total tracts to plot. Default: 1 (=100%)
+% - pct_threshold : Include only fibres that were extrapolated by less than
+%                   this percentage of their total length.  Default = [] (include all fibres)
+% - mm_threshold  : Include only fibres that were extrapolated by less than
+%                   this length (in mm). Default = [] (include all fibres)
 %
 % ----------------- OUTPUT -----------------
 % handles : handles to the plot objects
@@ -65,8 +69,10 @@ addParameter(p,'SurfModelColor','y',@(x) ischar(x) || isnumeric(x))
 addParameter(p,'SurfModelAlpha',0.25,@(x)validateattributes(x,{'numeric'},{'scalar'}))
 addParameter(p,'PlotStats',true,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'fraction',1,@(x) validateattributes(x,{'numeric'},{'scalar','>',0,'<=',1}))
-
+addParameter(p,'pct_threshold',[],@(x) isscalar(x) || isempty(x))
+addParameter(p,'mm_threshold',[],@(x) isscalar(x) || isempty(x))
 parse(p,varargin{:})
+
 ToPlot          = p.Results.ToPlot;
 Color           = p.Results.Color;
 SurfModel       = p.Results.SurfModel;
@@ -77,6 +83,8 @@ PlotStats       = p.Results.PlotStats;
 Tracts          = p.Results.Tracts;
 Selection       = p.Results.Selection;
 fraction        = p.Results.fraction;
+mm_threshold    = p.Results.mm_threshold;
+pct_threshold   = p.Results.pct_threshold;
 
 % If input1 is not provided, select a file from a dialog box.
 if isempty(Tracts)
@@ -108,6 +116,19 @@ else
     if nc == 1 && nr > 1
         Selection = Selection';
     end
+    if islogical(Selection)
+        Selection = find(Selection);
+    end
+end
+
+% Check if extrapolation threshold are provided. If so, exclude fibres 
+% above these thresholds
+if ~isempty(mm_threshold)
+    mm_ext = sum(DTItracts.ext(Selection,:),2);
+    Selection(mm_ext > mm_threshold) = [];
+end
+if ~isempty(pct_threshold)
+    Selection(DTItracts.pct_ext(Selection) > pct_threshold) = [];
 end
 
 % Check if surface model with fields 'vertices' and 'faces' is provided or
@@ -133,8 +154,18 @@ if PlotStats == true
         FigureTitle = '';
     end
     fig = figure('Name',sprintf('InspectTracts for %s',FigureTitle),'NumberTitle','Off');
-    handle_3D = subplot(3,4,[1 5 9]);
-    hold on;
+    axis tight
+    handle_3D = subplot(3,5,[1 6 11]);
+    hold on
+    
+    subplotnr = 1;
+    for ii = 1 : 12
+        subplotnr = subplotnr + 1;
+        if mod(subplotnr-1,5) == 0;subplotnr = subplotnr + 1;end
+        subhandles(ii) = subplot(3,5,subplotnr);
+        set(subhandles(ii),'Visible','off')
+        hold on
+    end
 end
 
 % Get the hold state at the start of the function so it can be changed to
@@ -222,6 +253,7 @@ for opt = ToPlot
     else
         c = Color(k,:);
     end
+    subplot(handle_3D);
     handles(k) = plot3(PlotX(:),PlotY(:),PlotZ(:),'LineWidth',LineWidth,'Color',c);
 end
 
@@ -247,9 +279,9 @@ title(titleTxt,'Interpreter','None')
 legend(handles,legendTxt)
 view(-37.5,30)
 axis equal off
-if PlotStats == true
-    set(gca,'Position',[0.13 0.11 0.2 0.8])
-end
+% if PlotStats == true
+%     set(gca,'Position',[0.13 0.11 0.2 0.8])
+% end
 
 % Add some lights
 lightangle(-37.5,30)
@@ -263,23 +295,30 @@ end
 
 %% Plot distribution of architecture and DTI indices for all tracts
 if PlotStats == true
-    VARS = {'Fibre length','mm',2,'fibrelength';...
+    VARS = {'Raw tract length','mm',2,'length_mm';...
+        'Percentage extension','%',2,'pct_ext';...
+        'Abs. extension','mm',2,'abs_ext';...
+        'Fascicle length','mm',2,'fibrelength';...
         'Pennation angle','degr',2,'penangle';...
         'Curvature','1/m',2,'curvature';...
-        'Percentage extension','%',2,'pct_ext';...
         'Fractional anisotropy','-',0.01,'fa';...
         'Mean diffusivity','1e-9 mm^2/s',0.05,'md';...
         '\lambda_1','1e-3 mm^2/s',0.05,'lambda1';...
         '\lambda_2','1e-3 mm^2/s',0.05,'lambda2';...
         '\lambda_3','1e-3 mm^2/s',0.05,'lambda3'};
+    % Make variable abs_ext (absolute extension = sum of extension at
+    % either end)
+    DTItracts.abs_ext = nansum(DTItracts.ext,2);
     CELLDATA = struct2cell(DTItracts);
     varNames = fieldnames(DTItracts);
-    subplotnr = 1;
+%     subplotnr = 1;
     for k = 1 : size(VARS,1)
         % Decide which subplot to display the data in
-        subplotnr = subplotnr + 1;
-        if mod(subplotnr-1,4) == 0;subplotnr = subplotnr + 1;end
-        subplot(3,4,subplotnr)
+%         subplotnr = subplotnr + 1;
+%         if mod(subplotnr-1,4) == 0;subplotnr = subplotnr + 1;end
+%         subplot(3,4,subplotnr)
+        subplot(subhandles(k))
+        set(subhandles(k),'Visible','on')
         
         % Check if variable exist. If not, continue with next.
         idx = strcmp(varNames,VARS{k,4});

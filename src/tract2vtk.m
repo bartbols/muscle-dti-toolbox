@@ -56,7 +56,7 @@ function tract2vtk(DTItracts,vtk_filename,varargin)
 
 % Read inputs 
 tic
-default_clist = {'fibrelength','penangle','curvature',...
+default_clist = {'fibrelength','penangle','penangle_l','curvature',...
     'pennation1','pennation2','pct_ext','fa','md','lambda1','lambda2','lambda3'};
 
 p = inputParser;
@@ -246,6 +246,8 @@ for c = 1 : numel(color_list)
                 value_per_fibre = DTItracts(d).fibrelength(SEL{d});
             case 'penangle'
                 value_per_fibre = mean(DTItracts(d).penangle(SEL{d},:),2);
+            case 'penangle_l'
+                value_per_fibre = mean(DTItracts(d).penangle_l(SEL{d},:),2);
             case 'curvature'
                 value_per_fibre = DTItracts(d).curvature(SEL{d});
             case 'pennation1'
