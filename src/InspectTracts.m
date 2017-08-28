@@ -36,7 +36,7 @@ function handles = InspectTracts(varargin)
 % - Selection     : vector of indices of fibres to plot. If not 
 %                   provided, all fibres are displayed. Both row and column
 %                   vectors are accepted.
-% - PlotStats     : also plots the distributino of the parameters in
+% - PlotStats     : also plot the histograms of the parameters in separate
 %                   subplots. Default: true
 % - fraction      : fraction (0 < fraction <= 1) of total tracts to plot. Default: 1 (=100%)
 % - pct_threshold : Include only fibres that were extrapolated by less than
@@ -48,7 +48,7 @@ function handles = InspectTracts(varargin)
 % handles : handles to the plot objects
 %
 % Examples:
-
+%
 % handles = InspectTracts('Tracts',DTItracts);
 %
 % handles = InspectTracts('Tracts',tract_filename,'SurfModel,surf_filename);
@@ -56,6 +56,9 @@ function handles = InspectTracts(varargin)
 % handles = InspectTracts('Tracts',DTItracts,'ToPlot',{'raw','poly','cut'},...
 %                'Color',{'r','g','c'},'SurfModel',surf_model,...
 %                'SurfModelColor','r','SurfModelAlpha',0.3)
+%
+% InspectTracts('Tracts',DTItracts,'mm_threshold',30)
+
 %% Check input
 p = inputParser;
 % addRequired(p,'DTItracts',@isstruct)
