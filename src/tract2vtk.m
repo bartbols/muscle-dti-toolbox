@@ -53,6 +53,7 @@ function tract2vtk(DTItracts,vtk_filename,varargin)
 %                  if ParaView is installed and added to the path.
 %                  Default: false
 % - Title        : title of VTK-file. Default: 'Tract data from MATLAB'
+%
 
 % Read inputs 
 tic
