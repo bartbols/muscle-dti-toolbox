@@ -14,7 +14,7 @@ function curvature = CalcCurvature( PolyCoeff)
 %         
 % ----------------- OUTPUT -----------------
 % - curvature : n x 1 array of mean curvatures per fibre.
-
+%
 nFib = length(PolyCoeff);
 
 hwait = waitbar(0,'',...
