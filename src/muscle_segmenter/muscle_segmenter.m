@@ -1,12 +1,7 @@
 function muscle_segmenter(filename)
-
-% - add parameter panel
-% - make optional inputs (inputParser)
-% - help/doc
-% - load/save panel (add image info)
-% - undo button
-% - add DTI (?)
-
+%% MUSCLE_SEGMENTER is a graphical user interface for semi-automated 
+% segmentation of 3D/4D images.
+%
 % Bart Bolsterlee
 % Neuroscience Research Australia
 % 21/06/2017
@@ -30,7 +25,6 @@ binaryMask = [];
 data=struct();
 voxelSize = [];
 imdim = [];
-
 mask_color = [0 255 0];
 %%
 % ---------------- MAKE AXES AND GUI OBJECTS --------------------------

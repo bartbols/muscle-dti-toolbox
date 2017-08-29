@@ -271,7 +271,8 @@ for c = 1 : numel(color_list)
         end
         V = [V;value_per_fibre];
     end
-    
+    % Replace NaN's by -999
+    V(isnan(V)) = -999;
     color_data = zeros(nPoints,1);
     for j = 1:nTracts
         % Specify the same color for all elements in this fibre

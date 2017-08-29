@@ -169,6 +169,8 @@ if PlotStats == true
         set(subhandles(ii),'Visible','off')
         hold on
     end
+else
+    handle_3D = gca;
 end
 
 % Get the hold state at the start of the function so it can be changed to
