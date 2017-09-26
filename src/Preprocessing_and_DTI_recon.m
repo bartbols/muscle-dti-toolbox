@@ -240,13 +240,39 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
         DTI_fname = filename.DTI_raw;
     end
     
-    commandTxt = sprintf('dsi_studio --action=src --source=%s --bval=%s --bvec=%s --output=%s',...
-        DTI_fname,...
-        filename.bval,...
-        bvec_file,...
-        filename.SRC);
-%     
-    [status,cmdout] = system(commandTxt,'-echo');
+    % Sometimes, DSI Studio does not correctly interpret image angulation 
+    % from the header, causing dimensions to be switched in the SRC file. 
+    % To prevent this from happening, the header information is altered
+    % here before the SRC-file and FIB-file are created.
+    
+    DWI_uncorr = load_untouch_nii(DTI_fname);
+    
+    % Correct header
+    DWI_uncorr.hdr.hist.srow_x = [sign(DWI_uncorr.hdr.hist.srow_x(1))*DWI_uncorr.hdr.dime.pixdim(2) 0 0 0];
+    DWI_uncorr.hdr.hist.srow_y = [0 sign(DWI_uncorr.hdr.hist.srow_y(2))*DWI_uncorr.hdr.dime.pixdim(3) 0 0];
+    DWI_uncorr.hdr.hist.srow_z = [0 0 sign(DWI_uncorr.hdr.hist.srow_z(3))*DWI_uncorr.hdr.dime.pixdim(4) 0];
+    
+    try
+        % Save as new file
+        char_list = char(['a':'z' '0':'9']) ;
+        tmp_file = fullfile(pwd,[char_list(ceil(length(char_list)*rand(1,8))) '.nii.gz']);
+        save_untouch_nii(DWI_uncorr,tmp_file);
+        
+        % Make SRC file with DSI Studio
+        commandTxt = sprintf('dsi_studio --action=src --source=%s --bval=%s --bvec=%s --output=%s',...
+            tmp_file,...
+            filename.bval,...
+            bvec_file,...
+            filename.SRC);
+        %
+        [status,cmdout] = system(commandTxt,'-echo');
+        delete(tmp_file) % delete temporary DTI file again
+    catch ME
+        % To prevent the temporary file to remain in existence if an
+        % error occurs, first remove temporary file, then throw error message.
+        delete(tmp_file)
+        error(ME.message)
+    end
     
 %% ---- Create fib file  ----    
     % Before fibre reconstruction, a mask with only 1's with the
