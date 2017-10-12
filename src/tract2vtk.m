@@ -147,7 +147,6 @@ points = [];
 t=0;
 fprintf('Fibre type written to file: %s\n',char(towrite))
 for d = 1 : nFiles
-    P = DTItracts(d).PolyCoeff;
     nTracts = numel(SEL{d});
 
     ns = 20; % number of points to sample along the polynomial curve
@@ -164,6 +163,7 @@ for d = 1 : nFiles
                 newpoints = DTItracts(d).tracts_xyz(:,sel);
             case 'poly'
                 % get point_data from polynomials + extensions
+                P = DTItracts(d).PolyCoeff;
                 X = [DTItracts(d).endpoints(i,1,1) polyval(P(i).x,linspace(P(i).t0,P(i).t1,ns)) DTItracts(d).endpoints(i,2,1)];
                 Y = [DTItracts(d).endpoints(i,1,2) polyval(P(i).y,linspace(P(i).t0,P(i).t1,ns)) DTItracts(d).endpoints(i,2,2)];
                 Z = [DTItracts(d).endpoints(i,1,3) polyval(P(i).z,linspace(P(i).t0,P(i).t1,ns)) DTItracts(d).endpoints(i,2,3)];

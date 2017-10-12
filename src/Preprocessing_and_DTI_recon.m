@@ -48,6 +48,24 @@ function filename = Preprocessing_and_DTI_recon( varargin )
 % acquisition using the transform matrix stored in the NIFTI header of the
 % DTI file. If false, the provided .bvec file is not corrected. Default = true.
 %
+% register: if true, the DTI data will be registered to a reference scan.
+% The following parameters are then also required:
+%
+% anat: filename of anatomical reference scan
+% parfile: the elastix parameter file used for registration
+%
+% And these parameters are optional parameters
+%
+% - mask                 : filename of the mask file used for registration
+% - foreground_threshold : threshold intensity for foreground. A foreground 
+%                          mask will be created using this threshold.
+% - stack                : if anatomical scan is 4D, choose which stack is
+%                          used for registration.
+% - b0_stack             : stack numbers in DTI file to which the
+%                          anatomical scan will be registered. Default = 1 
+%                          (usually the b0-image is the first image in the stack)
+
+%
 % ----------------- OUTPUT ----------------- 
 % filename: structure array with the filenames of the files used for tensor
 %           reconstruction.
@@ -55,18 +73,34 @@ function filename = Preprocessing_and_DTI_recon( varargin )
 % filename = Preprocessing_and_DTI_recon('DTI','DTI_data.nii.gz',...
 %                'bval',DTI_data.bval,'bvec','DTI_data.bvec',...
 %                'filter',true,'CorrectBVEC',true)
-
+%
+% Example with registration:
+% filename = Preprocessing_and_DTI_recon('DTI','DTI_data.nii.gz',...
+%                'bval',DTI_data.bval,'bvec','DTI_data.bvec',...
+%                'filter',true,'CorrectBVEC',true,...
+%                'register',true,'anat','anatomical.nii.gz',...
+%                'parfile','affine_parameters.txt')
 
 % Read input arguments
 p = inputParser;
-addParameter(p,'DTI',[],@(x) ~isempty(strfind(x,'.nii.gz')))
-addParameter(p,'bval',[],@(x) ~isempty(strfind(x,'.bval')))
-addParameter(p,'bvec',[],@(x) ~isempty(strfind(x,'.bvec')))
-addParameter(p,'SRC',[],@(x) ~isempty(strfind(x,'.src.gz')))
-addParameter(p,'FIB',[],@(x) ~isempty(strfind(x,'.fib.gz')))
+addParameter(p,'DTI',[],@(x) contains(x,'.nii.gz'))
+addParameter(p,'bval',[],@(x) contains(x,'.bval'))
+addParameter(p,'bvec',[],@(x) contains(x,'.bvec'))
+addParameter(p,'SRC',[],@(x) contains(x,'.src.gz'))
+addParameter(p,'FIB',[],@(x) contains(x,'.fib.gz'))
 addParameter(p,'filter',true,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'CorrectBVEC',true,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'ResultsPath',[])
+
+% Registration parameters
+addParameter(p,'register',false,@(x) x==0 || x==1 || islogical(x) )
+addParameter(p,'anat',[],@(x) contains(x,'.nii.gz'))
+addParameter(p,'parfile',[],@(x) exist(x,'file')==2)
+addParameter(p,'mask',[],@(x) contains(x,'.nii.gz'))
+addParameter(p,'foreground_threshold',10,@(x) assert(isscalar(x)))
+addParameter(p,'stack',[],@(x) assert(isscalar(x)))
+addParameter(p,'b0_stack',1,@(x) assert(isscalar(x)))
+
 parse(p,varargin{:});
 
 % Make cell structure with input arguments
@@ -138,6 +172,13 @@ else
     app = '';
 end
 
+RegistrationFlag = F{strcmp(F(:,1),'register'),2};
+if RegistrationFlag == true
+    app2 = '_reg';
+else
+    app2 = '';
+end
+
 % Decide whether to correct the bvec file or not
 BVEC_correction = F{strcmp(F(:,1),'CorrectBVEC'),2};
 if nargin == 0
@@ -158,14 +199,14 @@ if isempty(F{strcmp(F(:,1),'SRC'),2})
 %    No name for the src-file is provided. Use name of DTI file but change
 %    extension to .src.gz
     [path,file,ext] = fileparts(F{strcmp(F(:,1),'DTI'),2});
-    F{strcmp(F(:,1),'SRC'),2} = fullfile(F{strcmp(F(:,1),'ResultsPath'),2},[file(1:end-4) app '.src.gz']);
+    F{strcmp(F(:,1),'SRC'),2} = fullfile(F{strcmp(F(:,1),'ResultsPath'),2},[file(1:end-4) app app2 '.src.gz']);
 end  
  
 if isempty(F{strcmp(F(:,1),'FIB'),2})
 %    No name for the fib-file is provided. Use name of DTI file but change
 %    extension to .fib.gz
     [path,file,ext] = fileparts(F{strcmp(F(:,1),'DTI'),2});
-    F{strcmp(F(:,1),'FIB'),2} = fullfile(F{strcmp(F(:,1),'ResultsPath'),2},[file(1:end-4) app '.fib.gz']);
+    F{strcmp(F(:,1),'FIB'),2} = fullfile(F{strcmp(F(:,1),'ResultsPath'),2},[file(1:end-4) app app2 '.fib.gz']);
 end  
 
 % Put the filenames in a structure
@@ -222,6 +263,31 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
         warning('DTI data is not filtered')
     end
  
+    %% ---- Registration ---
+    if RegistrationFlag == true
+        if FilterFlag == true
+            filename.dti_before_reg = filename.DTI_filt;
+        else
+            filename.dti_before_reg = filename.DTI_raw;
+        end
+        filename.DTI_reg = [filename.dti_before_reg(1:end-7) '_reg.nii.gz'];
+       
+        % Register data to the anatomical scan using the provided settings
+        anat                 = F{strcmp(F(:,1),'anat'),2};
+        parfile              = F{strcmp(F(:,1),'parfile'),2};
+        stack                = F{strcmp(F(:,1),'stack'),2};
+        b0_stack             = F{strcmp(F(:,1),'b0_stack'),2};
+        foreground_threshold = F{strcmp(F(:,1),'foreground_threshold'),2};
+        mask                 = F{strcmp(F(:,1),'mask'),2};
+        
+        register_DTI_to_anat(filename.dti_before_reg,anat,...
+            parfile,filename.DTI_reg,...
+            'stack',stack,'b0_stack',b0_stack,...
+            'foreground_threshold',foreground_threshold,...
+            'mask',mask)
+    end
+
+    
     %% ---- Correct the bvec-file ----
     if BVEC_correction == true
         [T,bvec_corr] = correct_bvec(filename.DTI_raw,filename.bvec,filename.bvec_corr);
@@ -234,10 +300,19 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
     else
         bvec_file = filename.bvec;
     end
-    if FilterFlag == true
-        DTI_fname = filename.DTI_filt;
+    
+    % Decide which DTI data file to use for tensor reconstruction
+    if RegistrationFlag == true
+        % The registered file. (This can be filtered or not filtered.)
+        DTI_fname = filename.DTI_reg;
     else
-        DTI_fname = filename.DTI_raw;
+        if FilterFlag == true
+            % The filtered DTI file (not registered)
+            DTI_fname = filename.DTI_filt;
+        else
+            % The raw DTI file (not registered)
+            DTI_fname = filename.DTI_raw;
+        end
     end
     
     % Sometimes, DSI Studio does not correctly interpret image angulation 
@@ -301,13 +376,8 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
     %% EV1 map with primary eigenvector data 
     % Create an image with primary eigenvector data, which can be loaded as a EV1 map in ITK-snap
     FA_threshold = [0.05 0.5];
-    if FilterFlag == true
-        fname_DTI = filename.DTI_filt;
-    else
-        fname_DTI = filename.DTI_raw;
-    end
     filename.EV1 = MakeEV1map(filename.FIB,...
-        fname_DTI,...
+        DTI_fname,...
         FA_threshold);
     
     %% Report to command window

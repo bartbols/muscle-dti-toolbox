@@ -61,7 +61,7 @@ addRequired(p,'dti',@(x) contains(x,'.nii.gz'))
 addRequired(p,'anat',@(x) contains(x,'.nii.gz'))
 addRequired(p,'parfile')
 addRequired(p,'dti_reg',@(x) contains(x,'.nii.gz'))
-addParameter(p,'mask',[],@(x) contains(x,'.nii.gz'))
+addParameter(p,'mask',[],@(x) isempty(x) || contains(x,'.nii.gz'))
 addParameter(p,'foreground_threshold',10,@(x) assert(isscalar(x)))
 addParameter(p,'stack',[],@(x) assert(isscalar(x)))
 addParameter(p,'b0_stack',1,@(x) assert(isscalar(x)))
@@ -151,12 +151,12 @@ try
     % voxels and bounding box, the header is sometimes different, which
     % causes (subtle) misinterpretation of the registration results.
     
-    mask_iso_data = load_untouch_nii(mask_resampled);
-    anat_iso_data = load_untouch_nii(anat_resampled);
-    mask_iso_data.hdr.hist = dti_data.hdr.hist;
-    anat_iso_data.hdr.hist = dti_data.hdr.hist;
-    save_untouch_nii(mask_iso_data,mask_resampled);
-    save_untouch_nii(anat_iso_data,anat_resampled);
+    mask_resampled_data = load_untouch_nii(mask_resampled);
+    anat_resampled_data = load_untouch_nii(anat_resampled);
+    mask_resampled_data.hdr.hist = dti_data.hdr.hist;
+    anat_resampled_data.hdr.hist = dti_data.hdr.hist;
+    save_untouch_nii(mask_resampled_data,mask_resampled);
+    save_untouch_nii(anat_resampled_data,anat_resampled);
     
     waitbar(2 / (nStacks+2),h,...
         'Registering the B0-map to the anatomical scan.')

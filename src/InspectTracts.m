@@ -6,7 +6,7 @@ function handles = InspectTracts(varargin)
 % February 2017
 %
 % ----------------- USAGE -----------------
-% handles = PlotTracts  (user is requested to select a tract file from a
+% handles = InspectTracts  (user is requested to select a tract file from a
 %                        dialog box)
 % handles = InspectTracts(TractFilename,'ParameterName',<value>)
 %
