@@ -1,4 +1,4 @@
-function filename = Preprocessing_and_DTI_recon( varargin )
+function varargout = Preprocessing_and_DTI_recon( varargin )
 %PREPROCESSING_AND_DTI_RECON This function filters the raw DTI data,
 %corrects the bvec-file and calls DSI studio to reconstruct the diffusion
 %tensor. The data is then saved.
@@ -376,9 +376,12 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
     %% EV1 map with primary eigenvector data 
     % Create an image with primary eigenvector data, which can be loaded as a EV1 map in ITK-snap
     FA_threshold = [0.05 0.5];
-    filename.EV1 = MakeEV1map(filename.FIB,...
+    [~,b,~] = fileparts(filename.FIB);
+    filename.EV1 = fullfile(ResultsPath,[b(1:end-4) '_EV1.nii.gz']);
+    MakeEV1map(filename.FIB,...
         DTI_fname,...
-        FA_threshold);
+        FA_threshold,...
+        filename.EV1);
     
     %% Report to command window
     fprintf('DTI preprocessing completed. The following files were created:\n')
@@ -391,6 +394,8 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
     fprintf('%-30s: %s\n','SRC-file',filename.SRC)
     fprintf('%-30s: %s\n','Eigenvector1-map',filename.EV1)
     
-    
+    if nargout == 1
+        varargout{1} = filename;
+    end
 end
 
