@@ -206,14 +206,14 @@ if isempty(F{strcmp(F(:,1),'FIB'),2})
 %    No name for the fib-file is provided. Use name of DTI file but change
 %    extension to .fib.gz
     [path,file,ext] = fileparts(F{strcmp(F(:,1),'DTI'),2});
-    F{strcmp(F(:,1),'FIB'),2} = fullfile(F{strcmp(F(:,1),'ResultsPath'),2},[file(1:end-4) app app2 '.fib.gz']);
+    F{strcmp(F(:,1),'FIB'),2} = fullfile(ResultsPath,[file(1:end-4) app app2 '.fib.gz']);
 end  
 
 % Put the filenames in a structure
 filename.DTI_raw = F{strcmp(F(:,1),'DTI'),2};
 if FilterFlag == true
     [path,file,ext] = fileparts(F{strcmp(F(:,1),'DTI'),2});
-    filename.DTI_filt = fullfile(F{strcmp(F(:,1),'ResultsPath'),2},[file(1:end-4) app '.nii.gz']);
+    filename.DTI_filt = fullfile(ResultsPath,[file(1:end-4) app '.nii.gz']);
 else
     filename.DTI_filt = [];
 end
@@ -221,7 +221,7 @@ filename.bval      = F{strcmp(F(:,1),'bval'),2};
 filename.bvec      = F{strcmp(F(:,1),'bvec'),2};
 if BVEC_correction == true
     [path,file,ext] = fileparts(filename.bvec);
-    filename.bvec_corr = fullfile(F{strcmp(F(:,1),'ResultsPath'),2},[file '_corr' ext]);
+    filename.bvec_corr = fullfile(ResultsPath,[file '_corr' ext]);
 end
 filename.SRC       = F{strcmp(F(:,1),'SRC'),2};
 filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
@@ -270,7 +270,9 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
         else
             filename.dti_before_reg = filename.DTI_raw;
         end
-        filename.DTI_reg = [filename.dti_before_reg(1:end-7) '_reg.nii.gz'];
+        [~,b,c] = fileparts(filename.dti_before_reg);
+        tmp = [b c];
+        filename.DTI_reg = fullfile(ResultsPath,strrep(tmp,'.nii.gz','_reg.nii.gz'));
        
         % Register data to the anatomical scan using the provided settings
         anat                 = F{strcmp(F(:,1),'anat'),2};
@@ -374,7 +376,7 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
     movefile([filename.SRC '.dti.fib.gz'],filename.FIB);
 
     %% EV1 map with primary eigenvector data 
-    % Create an image with primary eigenvector data, which can be loaded as a EV1 map in ITK-snap
+    % Create an image with primary eigenvector data, which can be loaded as an EV1 map in ITK-snap
     FA_threshold = [0.05 0.5];
     [~,b,~] = fileparts(filename.FIB);
     filename.EV1 = fullfile(ResultsPath,[b(1:end-4) '_EV1.nii.gz']);

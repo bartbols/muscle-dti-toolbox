@@ -272,7 +272,7 @@ try
             % that the centre of the bounding boxes are aligned.
             
             nSlices = round(BB_DTI(3) ./ mask.hdr.dime.pixdim(4));
-            first_slice = round((BB_anat(3) - BB_DTI(3)) /  (2*mask.hdr.dime.pixdim(4)))+1;
+            first_slice = round((BB_anat(3) - BB_DTI(3)) / (2*mask.hdr.dime.pixdim(4)))+1;
             offset = (BB_anat(3) - BB_DTI(3)) /  (2*mask.hdr.dime.pixdim(4));
             
             mask_cropped = mask;
@@ -280,7 +280,7 @@ try
             
             mask_cropped.hdr.dime.dim(4) = nSlices;
             mask_cropped.hdr.hist.qoffset_z = mask_cropped.hdr.hist.qoffset_z + offset;
-            mask_cropped.hdr.hist.srow_z(4)  = mask_cropped.hdr.hist.srow_z(4) + offset;
+            mask_cropped.hdr.hist.srow_z(4) = mask_cropped.hdr.hist.srow_z(4) + offset;
             
             % Overwrite the mask with the cropped version.
             save_untouch_nii(mask_cropped,fullfile(tmpdir,'mask.nii.gz'));

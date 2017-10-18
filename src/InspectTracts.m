@@ -103,7 +103,7 @@ if isstruct(Tracts)
 else
     if exist(Tracts,'file') == 2
         DTItracts      = load(Tracts);
-        fullfilename = Tracts;
+        fullfilename   = Tracts;
         clear Tracts
     else
         error('%s not found.',Tracts)

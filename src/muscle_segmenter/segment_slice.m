@@ -48,8 +48,8 @@ img2 = double(img2);
 switch ndims(img1)
     case 2
         % Image has only 1 channel: convert to RGB map with 3 channels.
-        img1_tracking = ind2rgb(img1,gray(max(round(img1(:)))));
-        img2_tracking = ind2rgb(img2,gray(max(round(img2(:)))));
+        img1_tracking = ind2rgb(round(img1),gray(max(round(img1(:)))));
+        img2_tracking = ind2rgb(round(img2),gray(max(round(img2(:)))));
     case 3
         % Multiple channels in data.
         % Only 3 channels can be used for KLT tracking. These channels are
