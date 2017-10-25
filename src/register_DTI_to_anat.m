@@ -102,17 +102,15 @@ try
         anat_3D = anat;
     end
     
-    % Create mask if foreground_threshold is provided
-    
-    if ~isempty(foreground_threshold)
-        if ~isempty(mask)
-            error('mask and foreground_threhsold cannot both be defined. Remove either mask or foreground_threshold from the inputs.')
-        else
-            mask = fullfile(tmpdir,'mask_3D.nii.gz');
+    % Create mask based on foreground_threshold if no mask is provided
+    if isempty(mask)
+        if isempty(foreground_threshold)
+            foreground_threshold = -Inf;
         end
         anat_mask = load_untouch_nii(anat_3D);
-        anat_mask.img = cast(anat_mask.img>foreground_threshold,'like',anat_mask.img);
+        anat_mask.img = cast(anat_mask.img * anat_mask.hdr.dime.scl_slope>foreground_threshold,'like',anat_mask.img);
         anat_mask.hdr.dime.scl_slope = 1;
+        mask = fullfile(tmpdir,'mask_3D.nii.gz');
         save_untouch_nii(anat_mask,mask);
     end
     
