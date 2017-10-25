@@ -109,6 +109,7 @@ addParameter(p,'foreground_threshold',10,@(x) assert(isscalar(x)))
 addParameter(p,'stack',[],@(x) assert(isscalar(x)))
 addParameter(p,'b0_stack',1,@(x) assert(isscalar(x)))
 addParameter(p,'InspectRegistration',false,@(x) islogical(x) || x==1 || x==0);
+addParameter(p,'RegistrationTag','reg',@(x) ischar(x));
 
 parse(p,varargin{:});
 
@@ -183,8 +184,8 @@ else
 end
 
 RegistrationFlag = F{strcmp(F(:,1),'register'),2};
-if RegistrationFlag == true
-    app2 = '_reg';
+if RegistrationFlag == true    
+    app2 = ['_' p.Results.RegistrationTag];
 else
     app2 = '';
 end
