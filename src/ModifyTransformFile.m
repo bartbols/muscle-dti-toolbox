@@ -24,7 +24,8 @@ while ischar(tline)
         A{i} = sprintf('(Spacing %.5f %.5f %.5f)',img.hdr.dime.pixdim(2:4));
     elseif startsWith(tline,'(Origin')
         % minus signs before the x- and y-component are necessary because
-        % of the nifti coordinate system.
+        % of differences in coordinate systems between NIFTI (our data) and
+        % ITK (in which elastix works).
         A{i} = sprintf('(Origin %.5f %.5f %.5f)',...
             -img.hdr.hist.qoffset_x,...
             -img.hdr.hist.qoffset_y,...

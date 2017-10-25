@@ -52,9 +52,14 @@ function varargout = Preprocessing_and_DTI_recon( varargin )
 % The following parameters are then also required:
 %
 % anat: filename of anatomical reference scan
-% parfile: the elastix parameter file used for registration
 %
-% And these parameters are optional parameters
+% parfile:  filename (char) or a cell string of filenames of the elastix 
+%           parameter file(s) with registration parameters. For example, to
+%           perform a rigid and then a bspline registration: parfile =
+%           {'rigid.txt','bspline.txt'}. Or to only perform a bspline, use
+%           'bspline.txt'.
+%
+% And these parameters are optional registration parameters
 %
 % - mask                 : filename of the mask file used for registration
 % - foreground_threshold : threshold intensity for foreground. A foreground 
@@ -64,6 +69,9 @@ function varargout = Preprocessing_and_DTI_recon( varargin )
 % - b0_stack             : stack numbers in DTI file to which the
 %                          anatomical scan will be registered. Default = 1 
 %                          (usually the b0-image is the first image in the stack)
+% - InspectRegistration  : opens ITK-snap with the anatomical scan and the
+%                          DTI scans before and after registration.
+%                          This requires ITK-SNAP to be added to the path.
 
 %
 % ----------------- OUTPUT ----------------- 
@@ -83,29 +91,31 @@ function varargout = Preprocessing_and_DTI_recon( varargin )
 
 % Read input arguments
 p = inputParser;
-addParameter(p,'DTI',[],@(x) contains(x,'.nii.gz'))
+addParameter(p,'DTI' ,[],@(x) contains(x,'.nii.gz'))
 addParameter(p,'bval',[],@(x) contains(x,'.bval'))
 addParameter(p,'bvec',[],@(x) contains(x,'.bvec'))
-addParameter(p,'SRC',[],@(x) contains(x,'.src.gz'))
-addParameter(p,'FIB',[],@(x) contains(x,'.fib.gz'))
-addParameter(p,'filter',true,@(x) x==0 || x==1 || islogical(x) )
+addParameter(p,'SRC' ,[],@(x) contains(x,'.src.gz'))
+addParameter(p,'FIB' ,[],@(x) contains(x,'.fib.gz'))
+addParameter(p,'filter'     ,true,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'CorrectBVEC',true,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'ResultsPath',[])
 
 % Registration parameters
 addParameter(p,'register',false,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'anat',[],@(x) contains(x,'.nii.gz'))
-addParameter(p,'parfile',[],@(x) exist(x,'file')==2)
+addParameter(p,'parfile',[],@(x) iscell(x) || ischar(x))
 addParameter(p,'mask',[],@(x) contains(x,'.nii.gz'))
 addParameter(p,'foreground_threshold',10,@(x) assert(isscalar(x)))
 addParameter(p,'stack',[],@(x) assert(isscalar(x)))
 addParameter(p,'b0_stack',1,@(x) assert(isscalar(x)))
+addParameter(p,'InspectRegistration',false,@(x) islogical(x) || x==1 || x==0);
 
 parse(p,varargin{:});
 
 % Make cell structure with input arguments
 F(:,1) = fieldnames(p.Results);
 F(:,2) = struct2cell(p.Results);
+InspectionFlag = p.Results.InspectRegistration;
 
 
 %% Add parameters that are not provided
@@ -286,7 +296,8 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
             parfile,filename.DTI_reg,...
             'stack',stack,'b0_stack',b0_stack,...
             'foreground_threshold',foreground_threshold,...
-            'mask',mask)
+            'mask',mask,...
+            'InspectRegistration',InspectionFlag)
     end
 
     

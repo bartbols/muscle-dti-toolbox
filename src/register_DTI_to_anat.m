@@ -21,7 +21,11 @@ function dti_reg = register_DTI_to_anat( dti,anat,parfile,dti_reg,varargin)
 % ----- REQUIRED -----
 % dti:      filename of the DTI data file
 % anat:     filename of the anatomical MRI data
-% parfile:  fliename of the elastix parameter file with registration parameters
+% parfile:  filename (char) or a cell string of filenames of the elastix 
+%           parameter file(s) with registration parameters. For example, to
+%           perform a rigid and then a bspline registration: parfile =
+%           {'rigid.txt','bspline.txt'}. Or to only perform a bspline, use
+%           'bspline.txt'.
 % dti_reg:  filename of the registered DTI file (will be created)
 %
 % ----- OPTIONAL -----
@@ -36,6 +40,9 @@ function dti_reg = register_DTI_to_anat( dti,anat,parfile,dti_reg,varargin)
 % - b0_stack             : stack numbers in DTI file to which the
 %                          anatomical scan will be registered. Default = 1
 %                          (usually the b0-image is the first image in the stack)
+% - InspectRegistration  : opens ITK-snap with the anatomical scan and the
+%                          DTI scans before and after registration.
+%                          This requires ITK-SNAP to be added to the path.
 %
 % ----------------- OUTPUT -----------------
 % dti_reg: filename of the registered DTI file
@@ -59,12 +66,13 @@ function dti_reg = register_DTI_to_anat( dti,anat,parfile,dti_reg,varargin)
 p = inputParser;
 addRequired(p,'dti',@(x) contains(x,'.nii.gz'))
 addRequired(p,'anat',@(x) contains(x,'.nii.gz'))
-addRequired(p,'parfile')
+addRequired(p,'parfile',@(x) ischar(x) || iscell(x))
 addRequired(p,'dti_reg',@(x) contains(x,'.nii.gz'))
 addParameter(p,'mask',[],@(x) isempty(x) || contains(x,'.nii.gz'))
 addParameter(p,'foreground_threshold',10,@(x) assert(isscalar(x)))
 addParameter(p,'stack',[],@(x) assert(isscalar(x)))
 addParameter(p,'b0_stack',1,@(x) assert(isscalar(x)))
+addParameter(p,'InspectRegistration',false,@(x) islogical(x) || x==1 || x==0);
 parse(p,dti,anat,parfile,dti_reg,varargin{:});
 
 % Assign parameter values
@@ -72,6 +80,7 @@ foreground_threshold = p.Results.foreground_threshold;
 mask                 = p.Results.mask;
 stack                = p.Results.stack;
 b0_stack             = p.Results.b0_stack;
+InspectFlag          = p.Results.InspectRegistration;
 
 % Create temporary working directory.
 char_list = char(['a':'z' '0':'9']) ;
@@ -128,14 +137,40 @@ try
         'Registering the B0-map to the anatomical scan.')
     
     %% Register B0 map to the anatomical scan
+    if ischar(parfile)
+        % Only one parameter file is provided.
+        parfile = {parfile};
+    end
     
-    elastix_cmd = sprintf('elastix -f %s -m %s -fMask %s -p %s -out %s',...
-        anat_3D,...
-        b0_map,...
-        mask,...
-        parfile,...
-        tmpdir);
-    system(elastix_cmd)
+    % Check how many steps there are in the registration
+    nSteps = length(parfile);
+    % Now, iterate through the steps, using the transformation from the 
+    % previous step as the initial transformation.
+    for i = 1 : nSteps
+        mkdir(fullfile(tmpdir,sprintf('step%02d',i)))
+        if i == 1
+            % First step, no initial transform.
+            elastix_cmd = sprintf('elastix -f %s -m %s -fMask %s -out %s -p %s',...
+                anat_3D,...
+                b0_map,...
+                mask,...
+                fullfile(tmpdir,sprintf('step%02d',i)),...
+                parfile{i});
+        else
+            % after first step, use previous parameter file as initial
+            % transform
+            elastix_cmd = sprintf('elastix -f %s -m %s -fMask %s -out %s -t0 %s -p %s',...
+                anat_3D,...
+                b0_map,...
+                mask,...
+                fullfile(tmpdir,sprintf('step%02d',i)),...
+                fullfile(tmpdir,sprintf('step%02d',i-1),'TransformParameters.0.txt'),...
+                parfile{i});
+        
+        end
+        % Run registration with Elastix
+        system(elastix_cmd)
+    end
     
     
     %% APPLY TRANSFORMATION
@@ -143,7 +178,8 @@ try
     % First, modify the transform file so that it resamples the DTI image
     % to the dimensions of the original DTI image (and not of the
     % anatomical image to which it defaults)
-    transform_file     = fullfile(tmpdir,'TransformParameters.0.txt');
+    transform_file     = fullfile(tmpdir,sprintf('step%02d',i),...
+        'TransformParameters.0.txt');
     transform_file_mod = fullfile(tmpdir,'TransformParameters_mod.txt');    
     ModifyTransformFile(transform_file,b0_map,transform_file_mod);
     
@@ -174,9 +210,17 @@ try
     
     % Save the elastix transformation file as well.
     movefile(transform_file_mod,strrep(dti_reg,'.nii.gz','_transform.txt'));
-    % Delete the temporary working directory
-    rmdir(tmpdir,'s')
+    % Close the progress bar.
     close(h)
+    
+    % Inspect the results in ITK-snap
+    if InspectFlag == true
+        system(sprintf('itk-snap -g %s -o %s %s &',anat,dti,dti_reg))
+    end
+    
+    % Delete the temporary working directory.
+    rmdir(tmpdir,'s')
+    
 catch ME
     % remove temporary working directory, then throw error message
     rmdir(tmpdir,'s')

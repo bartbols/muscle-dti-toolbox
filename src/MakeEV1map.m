@@ -76,14 +76,13 @@ R(B<0) = -R(B<0);
 G(B<0) = -G(B<0);
 B(B<0) = -B(B<0);
 
-scaling = 10000;
+scaling = 1;
 eigvec_map(:,:,:,1) = R * scaling;
 eigvec_map(:,:,:,2) = G * scaling;
 eigvec_map(:,:,:,3) = B * scaling;
 
 % Use all information from the DTI nifti file but overwrite the image data
 % with the eigenvector map.
-% DTI_nii.img = eigvec_map;
 % The second dimension needs to be flipped to have a good match in ITK-snap
 % between the anatomical data and the eigenvector map. I'm not sure if this
 % also means that the y-direction (or maybe x-direction?) needs to be
@@ -94,9 +93,11 @@ eigvec_map(:,:,:,3) = B * scaling;
 
 if DTI_nii.hdr.hist.srow_x(1) > 0
     eigvec_map = flip(eigvec_map,1);
+    eigvec_map(:,:,:,1) = -eigvec_map(:,:,:,1);
 end
 if DTI_nii.hdr.hist.srow_y(2) > 0
     eigvec_map = flip(eigvec_map,2);
+    eigvec_map(:,:,:,2) = -eigvec_map(:,:,:,2);
 end
     
 DTI_nii.img = single(eigvec_map);
@@ -104,6 +105,7 @@ DTI_nii.hdr.dime.dim(5) = 3;
 DTI_nii.hdr.dime.scl_slope = 1; %/scaling;
 DTI_nii.hdr.dime.scl_inter = 0;
 DTI_nii.hdr.dime.bitpix = 32;
+DTI_nii.hdr.dime.datatype = 16;
 save_untouch_nii(DTI_nii,EV1_filename)
 
 
