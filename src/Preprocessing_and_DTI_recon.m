@@ -72,6 +72,9 @@ function varargout = Preprocessing_and_DTI_recon( varargin )
 % - InspectRegistration  : opens ITK-snap with the anatomical scan and the
 %                          DTI scans before and after registration.
 %                          This requires ITK-SNAP to be added to the path.
+%                          This requires ITK-SNAP to be added to the path.
+% - RegistrationTag      : Tag (char) to append to the registered filenames.
+%                          Default: 'reg'
 
 %
 % ----------------- OUTPUT ----------------- 
@@ -117,6 +120,7 @@ parse(p,varargin{:});
 F(:,1) = fieldnames(p.Results);
 F(:,2) = struct2cell(p.Results);
 InspectionFlag = p.Results.InspectRegistration;
+reg_tag        = p.Results.RegistrationTag;
 
 
 %% Add parameters that are not provided
@@ -185,7 +189,7 @@ end
 
 RegistrationFlag = F{strcmp(F(:,1),'register'),2};
 if RegistrationFlag == true    
-    app2 = ['_' p.Results.RegistrationTag];
+    app2 = ['_' reg_tag];
 else
     app2 = '';
 end
@@ -283,7 +287,7 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
         end
         [~,b,c] = fileparts(filename.dti_before_reg);
         tmp = [b c];
-        filename.DTI_reg = fullfile(ResultsPath,strrep(tmp,'.nii.gz','_reg.nii.gz'));
+        filename.DTI_reg = fullfile(ResultsPath,strrep(tmp,'.nii.gz',['_' reg_tag '.nii.gz']));
        
         % Register data to the anatomical scan using the provided settings
         anat                 = F{strcmp(F(:,1),'anat'),2};
