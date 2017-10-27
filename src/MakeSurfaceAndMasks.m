@@ -74,8 +74,8 @@ function filename = MakeSurfaceAndMasks(segm_filename, DTI_filename, varargin )
 
 %% Check input arguments
 p = inputParser;
-addRequired(p,'segm_filename',@(x) ~isempty(strfind(x,'.nii.gz')))
-addRequired(p,'DTI_filename',@(x) ~isempty(strfind(x,'.nii.gz')))
+addRequired(p,'segm_filename',@(x) contains(x,'.nii.gz'))
+addRequired(p,'DTI_filename',@(x) contains(x,'.nii.gz'))
 addParameter(p,'LabelNumbers',[],@isnumeric)
 addParameter(p,'LabelNames',[],@(x) assert(ischar(x) || iscell(x)))
 addParameter(p,'MaskPrefix',[],@ischar)
@@ -296,11 +296,6 @@ try
             % Read resampled mask into the workspace
             mask_resampled = load_untouch_nii(fullfile(tmpdir,'mask_resampled.nii.gz'));
             
-            mask_resampled.hdr.hist.srow_z(3) = -mask_resampled.hdr.hist.srow_z(3);
-            save_untouch_nii(mask_resampled, fullfile(tmpdir,'mask_resampled.nii.gz'))
-            % Set the filenames of the mask files that will be created
-            
-            
             % -------------------- TRACTOGRAPHY MASK FILES ----------------------
             
             % Create a new structure that will be written to a nifti file with only
@@ -325,7 +320,7 @@ try
             % Note: changing the sign in the srow_x/y/z matrices affects the
             % orientation in DSI Studio, but pixdim does not. DSI studio
             % also does not read any translational data (last element of
-            % the srow-vetors).
+            % the srow-vectors).
             full_mask.hdr.hist.srow_x = [sign(DTI_data.hdr.hist.srow_x(1)) * DTI_data.hdr.dime.pixdim(2) 0 0 0];
             full_mask.hdr.hist.srow_y = [0 sign(DTI_data.hdr.hist.srow_y(2)) * DTI_data.hdr.dime.pixdim(3) 0 0];
             full_mask.hdr.hist.srow_z = [0 0 sign(DTI_data.hdr.hist.srow_z(3)) * DTI_data.hdr.dime.pixdim(4) 0];

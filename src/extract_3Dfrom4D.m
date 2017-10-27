@@ -21,6 +21,7 @@ function nii = extract_3Dfrom4D( filename_4D,filename_3D,i )
 % Edit the header to conform with 3D data
     nii.hdr.dime.dim(1) = 3;                      % (make it 3D only)
     nii.hdr.dime.dim(5:8) = 1;                    % (make it 3D only)
+%     nii.hdr.dime.pixdim(5:8) = 0;
 
 % Save the 3D data
 
