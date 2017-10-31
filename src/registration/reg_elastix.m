@@ -1,9 +1,11 @@
-function [ output_args ] = reg_elastix( fixed, moving, parfile,transformfile,varargin )
+function reg_elastix( fixed, moving, parfile,varargin )
 %REG_ELASTIX Calls elastix to perform a registration on the fixed and moving
-% image using parameter file 'parfile'. The resulting transformation file
-% will be saved with filename 'transformfile'. 'parfile' can also be a cell
+% image using parameter file 'parfile'. 'parfile' can also be a cell
 % with multiple parameter files, in which case a multi-step registration
 % will be performed.
+%
+% Bart Bolsterlee, Neuroscience Research Australia (NeuRA)
+% October 2017
 %
 % ----------------- INPUT -----------------
 % ----- REQUIRED -----
@@ -14,46 +16,55 @@ function [ output_args ] = reg_elastix( fixed, moving, parfile,transformfile,var
 %           perform a rigid and then a bspline registration: parfile =
 %           {'rigid.txt','bspline.txt'}. Or to only perform a bspline, use
 %           'bspline.txt'.
-% transformfile:  filename of the final transformation file (will be
-%                 created by elastix)
 %
 % ----- OPTIONAL -----
 % Optional inputs are provided as pairs of 'ParameterName',<value> (e.g.
 % 'mask','mask.nii.gz')
 %
+% - transform_file       : filename of the final transformation (as created
+%                          by Elastix)
 % - mask                 : filename of the mask file used for registration
-% - foreground_threshold : threshold intensity for foreground. A foreground
-%                          mask will be created from the fixed image using
-%                          this threshold.
+% - foreground_threshold : threshold intensity for foreground. A mask will 
+%                          be created from the fixed image using all voxels
+%                          with a value above this threshold.
 % - stack_f              : if fixed image is 4D, choose which stack is
 %                          used for registration.
 % - stack_m              : if moving is 4D, choose which stack is
 %                          used for registration.
 % - surface_in           : STL filename of surface model to be transformed
 %                          with the resulting transformation
-% - surface_out           : STL filename of surface model after
-%                           transformation (will be created)
+% - surface_out          : STL filename of surface model after
+%                          transformation (will be created)
+% - result_image         : filename of the transformed image (moving to
+%                          fixed)
+% - dilate_mask          : number of voxels to grow the mask by prior to
+%                          registration.
 
 % Read the inputs
 p = inputParser;
 addRequired(p,'fixed',@(x) contains(x,'.nii.gz'))
 addRequired(p,'moving',@(x) contains(x,'.nii.gz'))
 addRequired(p,'parfile',@(x) ischar(x) || iscell(x))
-addRequired(p,'transformfile',@(x) ischar(x))
+addParameter(p,'transform_file',[],@(x) ischar(x))
 addParameter(p,'mask',[],@(x) isempty(x) || contains(x,'.nii.gz'))
 addParameter(p,'foreground_threshold',[],@(x) isscalar(x) || isempty(x))
 addParameter(p,'stack_f',[],@(x) assert(isnumeric(x)))
 addParameter(p,'stack_m',[],@(x) assert(isnumeric(x)))
 addParameter(p,'surface_in',[],@(x) contains(x,'.stl'))
 addParameter(p,'surface_out',[],@(x) contains(x,'.stl'))
-parse(p,fixed, moving, parfile,transformfile,varargin{:});
+addParameter(p,'result_image',[],@(x) contains(x,'.nii.gz'))
+addParameter(p,'dilate_mask',[],@(x) isscalar(x))
+parse(p,fixed, moving, parfile,varargin{:});
 
-mask        = p.Results.mask;
+mask         = p.Results.mask;
 foreground_threshold = p.Results.foreground_threshold;
-stack_f     = p.Results.stack_f;
-stack_m     = p.Results.stack_m;
-surface_out = p.Results.surface_out;
-surface_in  = p.Results.surface_in;
+stack_f      = p.Results.stack_f;
+stack_m      = p.Results.stack_m;
+surface_out  = p.Results.surface_out;
+surface_in   = p.Results.surface_in;
+result_image = p.Results.result_image;
+transform_file = p.Results.transform_file;
+dilate_mask  = p.Results.dilate_mask;
 
 % Create temporary working directory.
 char_list = char(['a':'z' '0':'9']) ;
@@ -98,8 +109,17 @@ try
         mask_img.hdr.dime.scl_slope = 1;
         mask = fullfile(tmpdir,'mask.nii.gz');
         save_untouch_nii(mask_img,mask);
-        fprintf('completed.\n')
+        fprintf('completed.\n')        
+    end
+    
+    if ~isempty(mask) && ~isempty(dilate_mask)
+        M = load_untouch_nii(mask);
+        M.img = cast(imdilate(M.img,ones(dilate_mask*2+1,dilate_mask*2+1)),'like',M.img);
         
+        % Save the dilated mask in the temporary working folder.
+        mask = fullfile(tmpdir,'mask.nii.gz');
+        save_untouch_nii(M,mask)
+
     end
         
     % Check how many steps there are in the registration
@@ -169,8 +189,7 @@ try
         transformix_cmd = sprintf('transformix -def %s -out %s -tp %s',...
             fullfile(tmpdir,'inputpoints.txt'),...
             tmpdir,...
-            fullfile(tmpdir,sprintf('step%02d',nSteps),...
-            'TransformParameters.0.txt'));
+            fullfile(tmpdir,sprintf('step%02d',nSteps),'TransformParameters.0.txt'));
         
         % Run transformix
         system(transformix_cmd);
@@ -184,9 +203,23 @@ try
         fprintf('In reg_elastix: Transformed surface saved as %s\n',surface_out)
 
     end
-    % Copy the final transform file.
-    movefile(fullfile(tmpdir,sprintf('step%02d',nSteps),...
-        'TransformParameters.0.txt'),transformfile);
+    
+    if ~isempty(result_image)
+        img_reg = fullfile(tmpdir,sprintf('step%02d',nSteps),...
+        'result.0.nii.gz');
+    
+        if exist(img_reg,'file') == 2
+            copyfile(img_reg,result_image)
+        else
+            warning('Result image not found. Check if the parameter WriteResultImage is set to "true" in the Elastix parameter file')
+        end
+            
+    end
+    if ~isempty(transform_file)
+        % Copy the final transform file.
+        movefile(fullfile(tmpdir,sprintf('step%02d',nSteps),...
+            'TransformParameters.0.txt'),transform_file);
+    end
     
     % Delete the temporary working directory.
     rmdir(tmpdir,'s')
