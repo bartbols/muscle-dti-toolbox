@@ -1,3 +1,4 @@
+
 function filename = MakeSurfaceAndMasks(segm_filename, DTI_filename, varargin )
 %MAKESURFACEANDMASKS Creates a surface mesh (.stl file) and masks (.nii.gz
 % files) at the resolution of the DTI scan for tractography.

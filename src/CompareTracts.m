@@ -8,7 +8,7 @@ function CompareTracts(varargin)
 % ----------------- USAGE -----------------
 % handles = CompareTracts  (user is requested to select tract files from a
 %                           dialog box)
-% handles = CompareTracts(TractFilename,names,'ParameterName',<value>)
+% handles = CompareTracts(filenames,'ParameterName',<value>)
 %
 % ----------------- INPUT -----------------
 % input1     - n x 1 structure containing data from one or multiple sets of
@@ -81,7 +81,7 @@ end
 
 if isempty(names)
     % Give the tracts the default names
-    for i = 1 : length(filenames)
+    for i = 1 : N
         names{i} = sprintf('tract%02d',i);
     end
 elseif ischar(names)

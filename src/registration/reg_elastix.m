@@ -23,7 +23,10 @@ function reg_elastix( fixed, moving, parfile,varargin )
 %
 % - transform_file       : filename of the final transformation (as created
 %                          by Elastix)
-% - mask                 : filename of the mask file used for registration
+% - mask                 : filename of the binary mask file used for registration.
+%                          Registration will be optimised for the region in
+%                          the mask only; regions outside the mask may have
+%                          poor alignment.
 % - foreground_threshold : threshold intensity for foreground. A mask will 
 %                          be created from the fixed image using all voxels
 %                          with a value above this threshold.
