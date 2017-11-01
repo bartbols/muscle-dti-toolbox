@@ -69,7 +69,7 @@ addRequired(p,'anat',@(x) contains(x,'.nii.gz'))
 addRequired(p,'parfile',@(x) ischar(x) || iscell(x))
 addRequired(p,'dti_reg',@(x) contains(x,'.nii.gz'))
 addParameter(p,'mask',[],@(x) isempty(x) || contains(x,'.nii.gz'))
-addParameter(p,'foreground_threshold',10,@(x) assert(isscalar(x)) || isempty(x))
+addParameter(p,'foreground_threshold',10,@(x) isscalar(x) || isempty(x))
 addParameter(p,'stack',[],@(x) assert(isscalar(x)))
 addParameter(p,'b0_stack',1,@(x) assert(isscalar(x)))
 addParameter(p,'InspectRegistration',false,@(x) islogical(x) || x==1 || x==0);
