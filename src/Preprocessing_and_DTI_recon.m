@@ -23,7 +23,7 @@ function varargout = Preprocessing_and_DTI_recon( varargin )
 % name as DTI file but with extension .src.gz and .fib.gz, respectively).
 %
 % ----- OPTIONAL -----
-% DTI: name of the 4D .nii.gz file containing the DTI data. If not
+% DTI: name of the 4D .nii (or nii.gz) file containing the DTI data. If not
 % provided, the user is requested to select a file.
 %
 % bvec: name of the file containing the b-vector data. If not
@@ -94,7 +94,7 @@ function varargout = Preprocessing_and_DTI_recon( varargin )
 
 % Read input arguments
 p = inputParser;
-addParameter(p,'DTI' ,[],@(x) contains(x,'.nii.gz'))
+addParameter(p,'DTI' ,[],@(x) contains(x,'.nii'))
 addParameter(p,'bval',[],@(x) contains(x,'.bval'))
 addParameter(p,'bvec',[],@(x) contains(x,'.bvec'))
 addParameter(p,'SRC' ,[],@(x) contains(x,'.src.gz'))
@@ -105,9 +105,9 @@ addParameter(p,'ResultsPath',[])
 
 % Registration parameters
 addParameter(p,'register',false,@(x) x==0 || x==1 || islogical(x) )
-addParameter(p,'anat',[],@(x) contains(x,'.nii.gz'))
+addParameter(p,'anat',[],@(x) contains(x,'.nii'))
 addParameter(p,'parfile',[],@(x) iscell(x) || ischar(x))
-addParameter(p,'mask',[],@(x) contains(x,'.nii.gz'))
+addParameter(p,'mask',[],@(x) contains(x,'.nii'))
 addParameter(p,'foreground_threshold',10,@(x) isscalar(x) || isempty(x))
 addParameter(p,'stack',[],@(x) assert(isscalar(x)))
 addParameter(p,'b0_stack',1,@(x) assert(isscalar(x)))
@@ -126,7 +126,7 @@ reg_tag        = p.Results.RegistrationTag;
 %% Add parameters that are not provided
 if isempty(F{strcmp(F(:,1),'DTI'),2})
 %    No DTI file is provided. Select a file now.
-    [fname,path] = uigetfile({'*.nii.gz'},'Select the unfiltered DTI data');
+    [fname,path] = uigetfile({'*.nii.gz';'*.nii'},'Select the unfiltered DTI data');
     F{strcmp(F(:,1),'DTI'),2} = fullfile(path,fname);
 end
   
@@ -287,7 +287,13 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
         end
         [~,b,c] = fileparts(filename.dti_before_reg);
         tmp = [b c];
-        filename.DTI_reg = fullfile(ResultsPath,strrep(tmp,'.nii.gz',['_' reg_tag '.nii.gz']));
+        if ~contains(tmp,'.nii.gz')
+            % file is not zipped
+            filename.DTI_reg = fullfile(ResultsPath,strrep(tmp,'.nii',['_' reg_tag '.nii.gz']));
+        else
+            % file is zipped
+            filename.DTI_reg = fullfile(ResultsPath,strrep(tmp,'.nii.gz',['_' reg_tag '.nii.gz']));
+        end
        
         % Register data to the anatomical scan using the provided settings
         anat                 = F{strcmp(F(:,1),'anat'),2};

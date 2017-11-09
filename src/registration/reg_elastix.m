@@ -42,32 +42,38 @@ function reg_elastix( fixed, moving, parfile,varargin )
 %                          fixed)
 % - dilate_mask          : number of voxels to grow the mask by prior to
 %                          registration.
+% - transform_inv        : filename of the inverse transformation file
+% - initial              : filename of the initial transformation
 
 % Read the inputs
 p = inputParser;
-addRequired(p,'fixed',@(x) contains(x,'.nii.gz'))
-addRequired(p,'moving',@(x) contains(x,'.nii.gz'))
+addRequired(p,'fixed',@(x) contains(x,'.nii'))
+addRequired(p,'moving',@(x) contains(x,'.nii'))
 addRequired(p,'parfile',@(x) ischar(x) || iscell(x))
 addParameter(p,'transform_file',[],@(x) ischar(x))
-addParameter(p,'mask',[],@(x) isempty(x) || contains(x,'.nii.gz'))
+addParameter(p,'mask',[],@(x) isempty(x) || contains(x,'.nii') || isnumeric(x) || iscell(x))
 addParameter(p,'foreground_threshold',[],@(x) isscalar(x) || isempty(x))
 addParameter(p,'stack_f',[],@(x) assert(isnumeric(x)))
 addParameter(p,'stack_m',[],@(x) assert(isnumeric(x)))
 addParameter(p,'surface_in',[],@(x) contains(x,'.stl'))
 addParameter(p,'surface_out',[],@(x) contains(x,'.stl'))
-addParameter(p,'result_image',[],@(x) contains(x,'.nii.gz'))
+addParameter(p,'result_image',[],@(x) contains(x,'.nii'))
 addParameter(p,'dilate_mask',[],@(x) isscalar(x))
+addParameter(p,'transform_inv',[],@(x) ischar(x))
+addParameter(p,'initial',[],@(x) ischar(x))
 parse(p,fixed, moving, parfile,varargin{:});
 
-mask         = p.Results.mask;
+mask           = p.Results.mask;
 foreground_threshold = p.Results.foreground_threshold;
-stack_f      = p.Results.stack_f;
-stack_m      = p.Results.stack_m;
-surface_out  = p.Results.surface_out;
-surface_in   = p.Results.surface_in;
-result_image = p.Results.result_image;
+stack_f        = p.Results.stack_f;
+stack_m        = p.Results.stack_m;
+surface_out    = p.Results.surface_out;
+surface_in     = p.Results.surface_in;
+result_image   = p.Results.result_image;
 transform_file = p.Results.transform_file;
-dilate_mask  = p.Results.dilate_mask;
+dilate_mask    = p.Results.dilate_mask;
+transform_inv  = p.Results.transform_inv;
+initial        = p.Results.initial;
 
 % Create temporary working directory.
 char_list = char(['a':'z' '0':'9']) ;
@@ -172,49 +178,71 @@ try
             % transform
             elastix_cmd = [elastix_cmd sprintf(' -t0 %s',...
                 fullfile(tmpdir,sprintf('step%02d',stepnr-1),'TransformParameters.0.txt'))];
+        else
+            if ~isempty(initial)
+                % An initial transformation is provided. Use this for the
+                % first step.
+                elastix_cmd = [elastix_cmd sprintf(' -t0 %s',...
+                    initial)];
+                
+            end
         end
         % Run registration with Elastix
         system(elastix_cmd)
         pause(1)
     end
+    transform_file_final = fullfile(tmpdir,sprintf('step%02d',nSteps),'TransformParameters.0.txt');
+    
+    if ~isempty(transform_inv)
+        % Also calculate the inverse transformation
+        % This procedure is described in the Elastix v4.8 manual section 6.1.6
+%         tf_inv = invert_transformation(transform_file,moving_3D{1},parfile{stepnr});
+        
+        par_file_inv = fullfile(tmpdir,'parfile_for_inv.txt');
+                
+        copyfile(parfile{stepnr},par_file_inv)
+        
+        set_ix(par_file_inv,'Metric','DisplacementMagnitudePenalty')
+        set_ix(par_file_inv,'HowToCombineTransforms','Compose')
+        
+        elastix_cmd = sprintf('elastix -f %s -m %s -t0 %s -p %s -out %s',...
+            fixed_3D{1},fixed_3D{1},...
+            transform_file_final,...
+            par_file_inv,tmpdir);
+        system(elastix_cmd);
+        set_ix(fullfile(tmpdir,'TransformParameters.0.txt'),'InitialTransformParametersFileName','NoInitialTransform')
+        
+        copyfile(fullfile(tmpdir,'TransformParameters.0.txt'),transform_inv)
+
+    end
     
     if ~isempty(surface_in)
+        % Read the surface model
         FV = stlread(surface_in);        
         
-        % Write vertices to transformix input points file. Because of 
-        % differences in ITK and NIFTI coordinate system, x- and y-values 
-        % need to be flipped before transformation.
-        R =  [-1 0 0;0 -1 0;0 0 1];
-        InputPointsWriter(fullfile(tmpdir,'inputpoints.txt'),...
-            FV.vertices*R,'point')
-
-        % Build up the transformix command.
-        transformix_cmd = sprintf('transformix -def %s -out %s -tp %s',...
-            fullfile(tmpdir,'inputpoints.txt'),...
-            tmpdir,...
-            fullfile(tmpdir,sprintf('step%02d',nSteps),'TransformParameters.0.txt'));
+        % Transform the vertices with transformix
+        FV.vertices = transformix_points(FV.vertices, transform_file_final);
         
-        % Run transformix
-        system(transformix_cmd);
-
-        % Read the transformed vertices
-        out = OutputPointsReader(fullfile(tmpdir,'outputpoints.txt'));
-        
-        % Flip vertices back to NIFTI coordinates and save as STL file.
-        FV.vertices = out.OutputPoint*R;
+        % Write as stl-file.
         stlwrite(surface_out,FV)
         fprintf('In reg_elastix: Transformed surface saved as %s\n',surface_out)
 
     end
     
     if ~isempty(result_image)
+        % Write the result image
         img_reg = fullfile(tmpdir,sprintf('step%02d',nSteps),...
         'result.0.nii.gz');
     
         if exist(img_reg,'file') == 2
-            copyfile(img_reg,result_image)
+            % Result image was written. Copy this file.
+            movefile(img_reg,result_image)
         else
-            warning('Result image not found. Check if the parameter WriteResultImage is set to "true" in the Elastix parameter file')
+            % Result image was not written. Create with elastix
+            transformix_cmd = sprintf('transformix -in %s -out %s -tp %s',...
+                moving_3D{1},tmpdir,transform_file_final);
+            system(transformix_cmd)
+            movefile(fullfile(tmpdir,'result.nii.gz'),result_image)
         end
             
     end

@@ -1,7 +1,7 @@
 
 function filename = MakeSurfaceAndMasks(segm_filename, DTI_filename, varargin )
 %MAKESURFACEANDMASKS Creates a surface mesh (.stl file) and masks (.nii.gz
-% files) at the resolution of the DTI scan for tractography.
+% or .nii files) at the resolution of the DTI scan for tractography.
 %
 % Bart Bolsterlee, Neuroscience Research Australia (NeuRA)
 % February 2017
@@ -17,7 +17,7 @@ function filename = MakeSurfaceAndMasks(segm_filename, DTI_filename, varargin )
 % ----------------- INPUT -----------------
 % ----- REQUIRED -----
 % - segm_filename: filename of the image file containing the labels at the
-% resolution of the anatomical scan. Must include extension .nii.gz. In the
+% resolution of the anatomical scan. Must include extension .nii or .nii.gz. In the
 % same folder as the label file, there must be a .lab file with label
 % information. The label info file should contain three columns with the
 % label number (the number in segmentation data) in the first column, the
@@ -75,8 +75,8 @@ function filename = MakeSurfaceAndMasks(segm_filename, DTI_filename, varargin )
 
 %% Check input arguments
 p = inputParser;
-addRequired(p,'segm_filename',@(x) contains(x,'.nii.gz'))
-addRequired(p,'DTI_filename',@(x) contains(x,'.nii.gz'))
+addRequired(p,'segm_filename',@(x) contains(x,'.nii'))
+addRequired(p,'DTI_filename',@(x) contains(x,'.nii'))
 addParameter(p,'LabelNumbers',[],@isnumeric)
 addParameter(p,'LabelNames',[],@(x) assert(ischar(x) || iscell(x)))
 addParameter(p,'MaskPrefix',[],@ischar)

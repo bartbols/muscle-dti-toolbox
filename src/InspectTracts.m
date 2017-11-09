@@ -63,8 +63,8 @@ function handles = InspectTracts(varargin)
 p = inputParser;
 % addRequired(p,'DTItracts',@isstruct)
 addParameter(p,'Tracts',[],@(x) isstruct(x) || exist(x,'file')==2)
-addParameter(p,'ToPlot',{'raw','poly'},@iscell)
-addParameter(p,'Color',jet(4),@(x) iscell(x) || isnumeric(x))
+addParameter(p,'ToPlot',{'raw','poly'},@(x) iscell(x) || ischar(x))
+addParameter(p,'Color',jet(4),@(x) iscell(x) || isnumeric(x) || ischar(x))
 addParameter(p,'LineWidth',1,@(x)validateattributes(x,{'numeric'},{'scalar'}))
 addParameter(p,'SurfModel',[],@(x) isstruct(x) || strcmp(x(end-3:end),'.stl'))
 addParameter(p,'Selection',[],@(x) isnumeric(x))
@@ -88,6 +88,9 @@ Selection       = p.Results.Selection;
 fraction        = p.Results.fraction;
 mm_threshold    = p.Results.mm_threshold;
 pct_threshold   = p.Results.pct_threshold;
+
+if ischar(ToPlot);ToPlot={ToPlot};end
+if ischar(Color);Color={Color};end
 
 % If input1 is not provided, select a file from a dialog box.
 if isempty(Tracts)
