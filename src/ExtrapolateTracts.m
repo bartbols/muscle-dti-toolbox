@@ -1,4 +1,4 @@
-function varargout = ExtrapolateTracts( DTItracts,surf_model,varargin )
+function varargout = ExtrapolateTracts( DTItracts,SurfModel,varargin )
 %EXTRAPOLATETRACTS This function fits a polynomial on the truncated fibre
 % tracts and then extrapolates this polynomial linearly at its endpoints
 % until the surface is intersected.
@@ -7,15 +7,15 @@ function varargout = ExtrapolateTracts( DTItracts,surf_model,varargin )
 % February 2017
 %
 % ----------------- USAGE ----------------- 
-% DTItracts = ExtrapolateTracts(DTItracts,surf_model,order)
+% DTItracts = ExtrapolateTracts(DTItracts,SurfModel,order)
 % or 
-% [PolyCoeff,fibrelength,ext,pct_ext,endpoints,residual] = ExtrapolateTracts(DTItracts,surf_model,order)
+% [PolyCoeff,fibrelength,ext,pct_ext,endpoints,residual] = ExtrapolateTracts(DTItracts,SurfModel,order)
 %
 % ----------------- INPUT -----------------
 % Required:
 % - DTItracts : a structure array containing at least the fields tracts_xyz 
 %               and fibindex_trunc (created with TruncateTracts.m).
-% - surf_model: a structure array containing the fields
+% - SurfModel: a structure array containing the fields
 %               'vertices','faces' with the vertices and faces of the 
 %               surface used for extrapolating the tracts.
 %
@@ -46,17 +46,40 @@ function varargout = ExtrapolateTracts( DTItracts,surf_model,varargin )
 % or outside the surface.
 
 %% Check inputs
-if nargin == 1 || nargin > 3 
-    error('Wrong number of input arguments. Usage is ExtrapolateTracts(DTItracts,surf_model) or ExtrapolateTracts(DTItracts,surf_model,order)')
-end
-
 tic
 p = inputParser;
-addRequired(p,'DTItracts',@isstruct)
-addRequired(p,'surf_model',@isstruct)
-addOptional(p,'order',3,@(x)(isnumeric(x) && mod(x,1)==0 && x>0))
-parse(p,DTItracts,surf_model,varargin{:})
-order = p.Results.order;
+addRequired(p,'DTItracts',@(x) isstruct(x) || exist(x,'file')==2)
+addRequired(p,'SurfModel',@(x) isstruct(x) || endsWith(x,'.stl','IgnoreCase',true))
+addParameter(p,'aponeurosis',[],@(x) isstruct(x) || endsWith(x,'.stl','IgnoreCase',true))
+addParameter(p,'order',3,@(x) isscalar(x) && x>0)
+parse(p,DTItracts,SurfModel,varargin{:})
+
+order       = p.Results.order;
+aponeurosis = p.Results.aponeurosis;
+
+%% Read inputs
+% if tract filename is provided, read the file.
+if ~isstruct(DTItracts)
+    DTItracts = load(DTItracts);
+end
+
+% if surface model filename is provided, read the stl file
+if ~isstruct(SurfModel)
+    if exist(SurfModel,'file') == 2
+        SurfModel = stlread(SurfModel);
+    else
+        error('%s does not exist.',SurfModel)
+    end
+end
+
+% Read the aponeurosis surface, if provided
+if ~isempty(aponeurosis) && ~isstruct(aponeurosis)
+    if exist(aponeurosis,'file') == 2
+        aponeurosis = stlread(aponeurosis);
+    else
+        error('%s does not exist.',aponeurosis)
+    end
+end
 
 % Check if all required fields are available in DTItracts and surface
 if ~isfield(DTItracts,'tracts_xyz')
@@ -66,12 +89,12 @@ if ~isfield(DTItracts,'fibindex_trunc')
     error('Required field fibindex_trunc not found in DTItracts.')
 end
 
-if ~isfield(surf_model,'vertices')
-    error('Required field vertices not found in surf_model.')
+if ~isfield(SurfModel,'vertices')
+    error('Required field vertices not found in SurfModel.')
 end
 
-if ~isfield(surf_model,'faces')
-    error('Required field faces not found in surf_model.')
+if ~isfield(SurfModel,'faces')
+    error('Required field faces not found in SurfModel.')
 end
 
 %%
@@ -83,10 +106,14 @@ if ~isfield(DTItracts,'fibindex_trunc')
     error('''fibindex_trunc'' is a required field in DTItracts')
 end
 
-endpoints   = NaN(nFib,2,3);
-ext         = NaN(nFib,2);
-fibrelength = NaN(nFib,1);
-residual    = NaN(nFib,1);
+endpoints   = NaN(nFib,2,3); % location of endpoints after extrapolation
+endpoints_dir = NaN(nFib,2,3); % fibre direction at endpoint
+ext         = NaN(nFib,2); % extension (in mm)
+fibrelength = NaN(nFib,1); % fascicle length
+residual    = NaN(nFib,1); % residual of polynomial fit
+attach_type = NaN(nFib,2); % array indicating, for each endpoint, whether attachment is on muscle (1) or aponeurosis (2)
+
+
 hwait = waitbar(0,'','Name','Progress bar ExtrapolateTracts');
 for fibnr = 1:1:nFib
     waitbar(fibnr/nFib,hwait,sprintf('Extrapolating fibre %d of %d',fibnr,nFib))
@@ -134,7 +161,7 @@ for fibnr = 1:1:nFib
               polyval(polyder(coeff.z),coeff.t0)];
 %         d1 = d1 / norm(d1); 
 
-%         if inside_surface(surf_model,p1) == 0
+%         if inside_surface(SurfModel,p1) == 0
 %             disp('point outside surface')
 %         end
         
@@ -159,14 +186,50 @@ for fibnr = 1:1:nFib
             d2 = -d2;
         end
         
-        % Calculate intersection of projection of endpoint1 with surface model
-        endpoints(fibnr,:,:) = intersectRaySurface(surf_model,[p1;p2],[d1;d2]);
-
+        % Calculate intersection of projection of the endpoints with the surface model
+%         endpoints(fibnr,:,:) = intersectRaySurface(SurfModel,[p1;p2],[d1;d2]);
+        int_musc = intersectRaySurface(SurfModel,[p1;p2],[d1;d2]);
+        
+        if ~isempty(aponeurosis)
+            % Also calculate the intersection of the projection of the
+            % endpoints with the aponeurosis
+            int_apo = intersectRaySurface(aponeurosis,[p1;p2],[d1;d2],false);
+            
+            % Calculate distance from endpoints to intersection with muscle and
+            % with the aponeurosis. Use the closest one.
+            dist_to_musc = sqrt(sum((int_musc - [p1;p2]).^2,2));
+            dist_to_apo  = sqrt(sum((int_apo - [p1;p2]).^2,2));
+            [~,minidx] = min([dist_to_musc dist_to_apo],[],2);
+            for i = 1 : 2
+                if minidx(i) == 1
+                    endpoints(fibnr,i,:) = int_musc(i,:);
+                    attach_type(fibnr,i) = 1;
+                elseif minidx(i) == 2
+                    endpoints(fibnr,i,:) = int_apo(i,:);
+                    attach_type(fibnr,i) = 2;
+                end
+            end
+        else
+            endpoints(fibnr,:,:) = int_musc;
+            attach_type(fibnr,1:2) = 1;
+        end
+        endpoints_dir(fibnr,:,:) = [d1;d2];
+        
+%         plot3(p1(1),p1(2),p1(3),'ro','MarkerSize',8,'MarkerFaceColor','r')
+%         quiver3(p1(1),p1(2),p1(3),d1(1),d1(2),d1(3),5,'r','LineWidth',2)
+%         plot3(p2(1),p2(2),p2(3),'ro','MarkerSize',8,'MarkerFaceColor','c')
+%         quiver3(p2(1),p2(2),p2(3),d2(1),d2(2),d2(3),5,'c','LineWidth',2)
+%         
+%         plot3(int_musc(:,1),int_musc(:,2),int_musc(:,3),'o','MarkerSize',8,'MarkerFaceColor','g')
+%         plot3(int_apo(:,1),int_apo(:,2),int_apo(:,3),'o','MarkerSize',8,'MarkerFaceColor','m')
+%         ep = min();
+%         endpoints(fibnr,:,:) = ep;
+        
 % %%       Some code that could be uncommented for diagnostic purposes        
 %         figure;
 %         hold on
 %         axis equal
-%         patch('vertices',surf_model.vertices,'faces',surf_model.faces,...
+%         patch('vertices',SurfModel.vertices,'faces',SurfModel.faces,...
 %             'FaceAlpha',0.2,'FaceColor','g')
 %         t_plot = linspace(coeff.t0,coeff.t1,100);
 % 
@@ -206,6 +269,8 @@ if nargout == 1
     DTItracts.pct_ext     = pct_ext;
     DTItracts.endpoints   = endpoints;
     DTItracts.residual    = residual ;
+    DTItracts.attach_type = attach_type ;
+    DTItracts.endpoints_dir = endpoints_dir;
     varargout{1}          = DTItracts;
 end
 if nargout > 1
@@ -219,6 +284,12 @@ if nargout > 1
                 varargout{5} = endpoints;
                 if nargout > 5
                     varargout{6} = residual; 
+                    if nargout > 6
+                        varargout{7} = attach_type; 
+                        if nargout > 7
+                            varargout{8} = endpoints_dir; 
+                        end
+                    end
                 end
             end
         end

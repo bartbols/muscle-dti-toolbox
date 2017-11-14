@@ -1,4 +1,4 @@
-function handles = InspectTracts(varargin)
+function varargout = InspectTracts(varargin)
 %%INSPECTTRACTS This function can be used to inspect the results of fiber
 %tracking and subsequent tract analyses.
 %
@@ -31,6 +31,9 @@ function handles = InspectTracts(varargin)
 % - SurfModel: structure array containing fields 'vertices' and 'faces' OR
 %              the full filename of the STL-file of the surface model.
 %              If provided, the surface model will be added to the plot.
+% - aponeurosis: structure array containing fields 'vertices' and 'faces' OR
+%              the full filename of the STL-file of the aponeurosis model.
+%              If provided, the aponeurosis model will be added to the plot.
 % - SurfModelColor: Color of the surface model. Default: 'y'
 % - SurfModelAlpha: alpha level of the surface model patch. Default: 0.2
 % - Selection     : vector of indices of fibres to plot. If not 
@@ -61,16 +64,28 @@ function handles = InspectTracts(varargin)
 
 %% Check input
 p = inputParser;
-% addRequired(p,'DTItracts',@isstruct)
 addParameter(p,'Tracts',[],@(x) isstruct(x) || exist(x,'file')==2)
 addParameter(p,'ToPlot',{'raw','poly'},@(x) iscell(x) || ischar(x))
-addParameter(p,'Color',jet(4),@(x) iscell(x) || isnumeric(x) || ischar(x))
-addParameter(p,'LineWidth',1,@(x)validateattributes(x,{'numeric'},{'scalar'}))
-addParameter(p,'SurfModel',[],@(x) isstruct(x) || strcmp(x(end-3:end),'.stl'))
-addParameter(p,'Selection',[],@(x) isnumeric(x))
+
+% Surface model
+addParameter(p,'SurfModel',[],@(x) isstruct(x) || endsWith(x,'.stl','IgnoreCase',true))
 addParameter(p,'SurfModelColor','y',@(x) ischar(x) || isnumeric(x))
 addParameter(p,'SurfModelAlpha',0.25,@(x)validateattributes(x,{'numeric'},{'scalar'}))
+addParameter(p,'SurfModelEdgeColor','y',@(x) ischar(x) || isnumeric(x))
+addParameter(p,'SurfModelEdgeAlpha',0.1,@(x)validateattributes(x,{'numeric'},{'scalar'}))
+
+% Aponeurosis model
+addParameter(p,'aponeurosis',[],@(x) isstruct(x) || endsWith(x,'.stl','IgnoreCase',true))
+addParameter(p,'aponeurosisColor','r',@(x) ischar(x) || isnumeric(x))
+addParameter(p,'aponeurosisAlpha',0.5,@(x)validateattributes(x,{'numeric'},{'scalar'}))
+addParameter(p,'aponeurosisEdgeColor','r',@(x) ischar(x) || isnumeric(x))
+addParameter(p,'aponeurosisEdgeAlpha',0.25,@(x)validateattributes(x,{'numeric'},{'scalar'}))
+
+% Some more plot options
+addParameter(p,'Color',jet(4),@(x) iscell(x) || isnumeric(x) || ischar(x))
+addParameter(p,'LineWidth',1,@(x)validateattributes(x,{'numeric'},{'scalar'}))
 addParameter(p,'PlotStats',true,@(x) x==0 || x==1 || islogical(x) )
+addParameter(p,'Selection',[],@(x) isnumeric(x))
 addParameter(p,'fraction',1,@(x) validateattributes(x,{'numeric'},{'scalar','>',0,'<=',1}))
 addParameter(p,'pct_threshold',[],@(x) isscalar(x) || isempty(x))
 addParameter(p,'mm_threshold',[],@(x) isscalar(x) || isempty(x))
@@ -79,8 +94,6 @@ parse(p,varargin{:})
 ToPlot          = p.Results.ToPlot;
 Color           = p.Results.Color;
 SurfModel       = p.Results.SurfModel;
-SurfModelColor  = p.Results.SurfModelColor;
-SurfModelAlpha  = p.Results.SurfModelAlpha;
 LineWidth       = p.Results.LineWidth;
 PlotStats       = p.Results.PlotStats;
 Tracts          = p.Results.Tracts;
@@ -88,6 +101,17 @@ Selection       = p.Results.Selection;
 fraction        = p.Results.fraction;
 mm_threshold    = p.Results.mm_threshold;
 pct_threshold   = p.Results.pct_threshold;
+aponeurosis     = p.Results.aponeurosis;
+
+SurfModelColor       = p.Results.SurfModelColor;
+SurfModelAlpha       = p.Results.SurfModelAlpha;
+SurfModelEdgeColor   = p.Results.SurfModelEdgeColor;
+SurfModelEdgeAlpha   = p.Results.SurfModelEdgeAlpha;
+
+aponeurosisColor     = p.Results.aponeurosisColor;
+aponeurosisAlpha     = p.Results.aponeurosisAlpha;
+aponeurosisEdgeColor = p.Results.aponeurosisEdgeColor;
+aponeurosisEdgeAlpha = p.Results.aponeurosisEdgeAlpha;
 
 if ischar(ToPlot);ToPlot={ToPlot};end
 if ischar(Color);Color={Color};end
@@ -147,6 +171,20 @@ if ~isempty(SurfModel)
         else
             warning('%s does not exist. Surface model not displayed.',SurfModel)
             SurfModel = [];
+        end
+    end
+end
+
+% Check if aponeurosis model with fields 'vertices' and 'faces' is provided or
+% the filename of the STL file. If an STL-filename is provided, load the
+% surface model.
+if ~isempty(aponeurosis)
+    if ~isstruct(aponeurosis)
+        if exist(aponeurosis,'file') == 2
+            aponeurosis = stlread(aponeurosis);
+        else
+            warning('%s does not exist. Aponeurosis model not displayed.',SurfModel)
+            aponeurosis = [];
         end
     end
 end
@@ -213,6 +251,9 @@ for opt = ToPlot
             %             nFib = size(DTItracts.fibindex_trunc,1);
             PlotX = [];PlotY =[];PlotZ = [];
             for fibnr = SelectionPlot
+                if any(isnan(DTItracts.fibindex_trunc(fibnr,1:2)))
+                    continue
+                end
                 PlotX = [PlotX DTItracts.tracts_xyz(1,min(DTItracts.fibindex_trunc(fibnr,1:2)):max(DTItracts.fibindex_trunc(fibnr,1:2))) NaN];
                 PlotY = [PlotY DTItracts.tracts_xyz(2,min(DTItracts.fibindex_trunc(fibnr,1:2)):max(DTItracts.fibindex_trunc(fibnr,1:2))) NaN];
                 PlotZ = [PlotZ DTItracts.tracts_xyz(3,min(DTItracts.fibindex_trunc(fibnr,1:2)):max(DTItracts.fibindex_trunc(fibnr,1:2))) NaN];
@@ -224,6 +265,10 @@ for opt = ToPlot
             nFib = size(DTItracts.fibindex_trunc,1);
             PlotX = [];PlotY =[];PlotZ = [];
             for fibnr = SelectionPlot
+                if any(isnan(DTItracts.fibindex_trunc(fibnr,1:2)))
+                    continue
+                end
+
                 PlotX = [PlotX DTItracts.tracts_xyz(1,min(DTItracts.fibindex(fibnr,1:2)):(min(DTItracts.fibindex_trunc(fibnr,1:2))-1)) NaN,...
                     DTItracts.tracts_xyz(1,(max(DTItracts.fibindex_trunc(fibnr,1:2))+1):max(DTItracts.fibindex(fibnr,1:2))) NaN];
                 PlotY = [PlotY DTItracts.tracts_xyz(2,min(DTItracts.fibindex(fibnr,1:2)):(min(DTItracts.fibindex_trunc(fibnr,1:2))-1)) NaN,...
@@ -242,6 +287,10 @@ for opt = ToPlot
             end
             for fibnr = SelectionPlot
                 if isempty(P(fibnr).x);continue;end
+                if any(isnan(DTItracts.fibindex_trunc(fibnr,1:2)))
+                    continue
+                end
+
                 tmpX = [DTItracts.endpoints(fibnr,1,1) polyval(P(fibnr).x,linspace(P(fibnr).t0,P(fibnr).t1,100)) DTItracts.endpoints(fibnr,2,1)];
                 tmpY = [DTItracts.endpoints(fibnr,1,2) polyval(P(fibnr).y,linspace(P(fibnr).t0,P(fibnr).t1,100)) DTItracts.endpoints(fibnr,2,2)];
                 tmpZ = [DTItracts.endpoints(fibnr,1,3) polyval(P(fibnr).z,linspace(P(fibnr).t0,P(fibnr).t1,100)) DTItracts.endpoints(fibnr,2,3)];
@@ -272,12 +321,26 @@ if ~isempty(SurfModel)
         'Faces',SurfModel.faces,...
         'FaceColor',SurfModelColor,...
         'FaceAlpha',SurfModelAlpha,...
-        'EdgeColor','None');
+        'EdgeColor',SurfModelEdgeColor,...
+        'EdgeAlpha',SurfModelEdgeAlpha);
     legendTxt{k+1} = 'Muscle surface';
-    set(gca,'XLim',[min(SurfModel.vertices(:,1)),max(SurfModel.vertices(:,1))],...
-        'YLim',[min(SurfModel.vertices(:,2)),max(SurfModel.vertices(:,2))],...
-        'ZLim',[min(SurfModel.vertices(:,3)),max(SurfModel.vertices(:,3))])
+%     set(gca,'XLim',[min(SurfModel.vertices(:,1)),max(SurfModel.vertices(:,1))],...
+%         'YLim',[min(SurfModel.vertices(:,2)),max(SurfModel.vertices(:,2))],...
+%         'ZLim',[min(SurfModel.vertices(:,3)),max(SurfModel.vertices(:,3))])
 end
+
+if ~isempty(aponeurosis)
+    
+    % Plot the surface model
+    handles(k+2) = patch('Vertices',aponeurosis.vertices,...
+        'Faces',aponeurosis.faces,...
+        'FaceColor',aponeurosisColor,...
+        'FaceAlpha',aponeurosisAlpha,...
+        'EdgeColor',aponeurosisEdgeColor,...
+        'EdgeAlpha',aponeurosisEdgeAlpha);
+    legendTxt{k+2} = 'Aponeurosis';
+end
+
 if exist('FigureTitle','var')
     [~,titleTxt] = fileparts(FigureTitle);
 else
@@ -350,5 +413,8 @@ if PlotStats == true
     end
     
     set(gcf,'Position',get(0,'ScreenSize') + [0 100 0 -200])
+end
+if nargout == 1
+    varargout{1} = handles;
 end
 rotate3d

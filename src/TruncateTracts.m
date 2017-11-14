@@ -1,7 +1,7 @@
-function varargout = TruncateTracts( DTItracts,surf_model)
+function varargout = TruncateTracts( DTItracts,SurfModel,varargin)
 %%TRUNCATETRACTS Truncates the fiber tracts so that they terminate inside
-% the muscle surface model. The truncated length and truncated fibre
-% indices are returned.
+% the muscle surface model and, optionally, outside the aponeurosis. The
+% truncated length and fibre indices are returned.
 %
 % Bart Bolsterlee, Neuroscience Research Australia (NeuRA)
 % February 2017
@@ -10,11 +10,15 @@ function varargout = TruncateTracts( DTItracts,surf_model)
 % [ fibindex_trunc,length_trunc ] = TruncateTracts( DTItracts,surface)
 % 
 % ----------------- INPUT -----------------
-% - DTItracts : a structure array containing at least the fields tracts_xyz
-%               and fibindex.
-% - surf_model   : a structure array 'surface' containing the fields
-%   'vertices','faces' with the vertices and faces of the surface used 
-%   for truncating the tracts.
+% - DTItracts    :  a structure array containing at least the fields tracts_xyz
+%                   and fibindex.
+% - SurfModel    :  a structure array containing the fields 'vertices' and 
+%                   'faces' of the surface model.
+%
+% Optional inputs, provided as 'parameter',<value> pairs:
+% - aponeurosis   : a structure array containing the fields 'vertices' and 
+%                   'faces' of the aponeurosis. A filename of an STL file
+%                   can also be provided.
 %         
 % ----------------- OUTPUT -----------------
 % - fibindex_trunc: n x 2 array with the first and last index of the
@@ -29,15 +33,39 @@ function varargout = TruncateTracts( DTItracts,surf_model)
 % or outside the surface.
 
 %% Check inputs
-if nargin ~= 2
-    error('Wrong number of input arguments. Usage is TruncateTracts(DTItracts,surface)')
-end
 
 tic
 p = inputParser;
-addRequired(p,'DTItracts',@isstruct)
-addRequired(p,'surf_model',@isstruct)
-parse(p,DTItracts,surf_model)
+addRequired(p,'DTItracts',@(x) isstruct(x) || exist(x,'file')==2)
+addRequired(p,'SurfModel',@(x) isstruct(x) || endsWith(x,'.stl','IgnoreCase',true))
+addParameter(p,'aponeurosis',[],@(x) isstruct(x) || endsWith(x,'.stl','IgnoreCase',true))
+parse(p,DTItracts,SurfModel,varargin{:})
+
+aponeurosis = p.Results.aponeurosis;
+
+%% Read inputs
+% if tract filename is provided, read the file.
+if ~isstruct(DTItracts)
+    DTItracts = load(DTItracts);
+end
+
+% if surface model filename is provided, read the stl file
+if ~isstruct(SurfModel)
+    if exist(SurfModel,'file') == 2
+        SurfModel = stlread(SurfModel);
+    else
+        error('%s does not exist.',SurfModel)
+    end
+end
+
+% Read the aponeurosis surface, if provided
+if ~isempty(aponeurosis) && ~isstruct(aponeurosis)
+    if exist(aponeurosis,'file') == 2
+        aponeurosis = stlread(aponeurosis);
+    else
+        error('%s does not exist.',aponeurosis)
+    end
+end
 
 % Check if all required fields are available in DTItracts and surface
 if ~isfield(DTItracts,'tracts_xyz')
@@ -47,29 +75,39 @@ if ~isfield(DTItracts,'fibindex')
     error('Required field fibindex not found in DTItracts.')
 end
 
-if ~isfield(surf_model,'vertices')
-    error('Required field vertices not found in surf_model.')
+if ~isfield(SurfModel,'vertices')
+    error('Required field vertices not found in SurfModel.')
 end
 
-if ~isfield(surf_model,'faces')
-    error('Required field faces not found in surf_model.')
+if ~isfield(SurfModel,'faces')
+    error('Required field faces not found in SurfModel.')
 end
 
 %% Fibre truncation
 nFib = size(DTItracts.fibindex,1);
 fibindex_trunc = NaN(nFib,2);
 length_trunc   = NaN(nFib,1);
-hwait = waitbar(0,'Calculating which tract points are inside and outside surface model',...
+hwait = waitbar(0,'Calculating which tract points are inside the muscle',...
     'Name','Progress bar TruncateTracts');
 
-% Calculate whether point is inside or outside of surface model. It is much
-% faster to do this for all points at once then inside the loop for each
-% fibre individually.
+% Calculate points are inside the surface model. It is much faster to do 
+% this for all points at once then inside the loop for each fibre 
+% individually.
 
-% TSIG =  inpolyhedron(surface,DTItracts.tracts_xyz');
-INSIDE =  inside_surface(surf_model,DTItracts.tracts_xyz');
+INSIDE_muscle =  inside_surface(SurfModel,DTItracts.tracts_xyz');
 
-for fibnr = 1:nFib
+
+if isempty(aponeurosis)
+    % No aponeurosis is provide, so all points are outside the aponeurosis.
+    OUTSIDE_apo = true(size(INSIDE_muscle));
+else
+    % An aponeurosis has been provided. Calculate which points are outside 
+    % the aponeurosis.    
+    waitbar(0,hwait,'Calculating which tract points are inside the aponeurosis')
+    OUTSIDE_apo = ~inside_surface(aponeurosis,DTItracts.tracts_xyz');
+end
+
+for fibnr =  1:nFib
     waitbar(fibnr/nFib,hwait,sprintf('Truncating fibre %d of %d',fibnr,nFib))
     
     % Remove tract points outside the muscle volume
@@ -79,13 +117,30 @@ for fibnr = 1:nFib
         sgn = -1;
     end
     p = DTItracts.fibindex(fibnr,1) : sgn : DTItracts.fibindex(fibnr,2);
-    in = INSIDE(p);
     
-    dsig = diff([1 ~in' 1]);
+    % Check which points of this fibre are inside the muscle and
+    % outside the aponeurosis
+       
+    in_muscle = INSIDE_muscle(p);
+    out_apo   = OUTSIDE_apo(p);
+    
+    dsig = diff([1 ~(in_muscle & out_apo)' 1]);
     startIndex = find(dsig < 0);
     endIndex   = find(dsig > 0)-1;
     len = endIndex - startIndex+1;
     [nSteps,maxIndex] = max(len);
+
+%   % Plot the selected points along the tract
+%     pts = DTItracts.tracts_xyz(:,p);
+%     plot3(pts(1,startIndex:endIndex),...
+%           pts(2,startIndex:endIndex),...
+%           pts(3,startIndex:endIndex),...
+%         'go','MarkerSize',6)
+%     
+%     plot3(pts(1,:),...
+%           pts(2,:),...
+%           pts(3,:),...
+%         'yo','MarkerSize',6)
     
     if isempty(len) || nSteps < 5
         % No or too few points are inside the surface

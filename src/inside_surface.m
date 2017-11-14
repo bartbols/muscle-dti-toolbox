@@ -1,7 +1,7 @@
 function IN = inside_surface(FV,pts)
 %%INSIDE_SURFACE calculates whether the points given in pts (n x 3 matrix
 %%of x y z coordinates) are inside (1) or outside (0) the triangulated
-%%surface given by FV (containing fields faces and vertices)
+%%surface given by FV (containing fields faces and vertices).
 %
 % Bart Bolsterlee, Neuroscience Research Australia (NeuRA)
 % February 2017
@@ -88,6 +88,7 @@ for i = 1 : size(pts,1)
     
     % Count how many times the surface was intersected
     nint = sum((S >= 0 & S <= 1 & T >= 0 & (S+T) <= 1) & R >= 0);
+    
     % return false if even, and true if odd
     IN(i) = logical(mod(nint,2));
     
