@@ -27,10 +27,10 @@ function EV1_filename = MakeEV1map( fib_filename,DTI_filename, fa_threshold,vara
 
 %% Check inputs
 p = inputParser;
-addRequired(p,'fib_filename',@(x) ~isempty(strfind(x,'.fib.gz')))
-addRequired(p,'DTI_filename',@(x) ~isempty(strfind(x,'.nii.gz')))
+addRequired(p,'fib_filename',@(x) contains(x,'.fib'))
+addRequired(p,'DTI_filename',@(x) contains(x,'.nii'))
 addRequired(p,'fa_threshold',@(x) validateattributes(x,{'numeric'},{'size',[1 2]}))
-addOptional(p,'EV1_filename',[DTI_filename(1:end-7) '_EV1.nii.gz'],@(x) ~isempty(strfind(x,'.nii.gz')))
+addOptional(p,'EV1_filename',[DTI_filename(1:end-7) '_EV1.nii.gz'],@(x) contains(x,'.nii'))
 parse(p,fib_filename,DTI_filename,fa_threshold,varargin{:});
 EV1_filename = p.Results.EV1_filename;
 %%
