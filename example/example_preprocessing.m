@@ -11,9 +11,9 @@ addpath(genpath('../src'))
 % the filename.
 datapath       = fullfile(pwd,'data','001');   % raw data path for subject 1
 results_path   = fullfile(pwd,'results','001'); % results path for subject 1
-DTI_filename   = fullfile(datapath,'CALF001_DTI.nii.gz'); 
-bval_filename  = fullfile(datapath,'CALF001_DTI.bval');
-bvec_filename  = fullfile(datapath,'CALF001_DTI.bvec');
+filename.DTI   = fullfile(datapath,'CALF001_DTI.nii.gz'); 
+filename.bval  = fullfile(datapath,'CALF001_DTI.bval');
+filename.bvec  = fullfile(datapath,'CALF001_DTI.bvec');
 
 %% Preprocess the DTI data and create the src/fib file
 % By calling Preprocessing_and_DTI_recon, the b-vectors are corrected, the
@@ -23,7 +23,7 @@ bvec_filename  = fullfile(datapath,'CALF001_DTI.bvec');
 % Type help Preprocessing_and_DTI_recon for more information on how to use
 % this function.
 FilterFlag = true; 
-filename = Preprocessing_and_DTI_recon('DTI',DTI_filename,...
-    'bval',bval_filename,'bvec',bvec_filename,...
+filename = Preprocessing_and_DTI_recon('DTI',filename.DTI,...
+    'bval',filename.bval,'bvec',filename.bvec,...
     'filter',FilterFlag,...
     'ResultsPath',results_path);
