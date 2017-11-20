@@ -52,9 +52,13 @@ if nargout < 2
     switch plottype
         case 'bar'
             if fraction == true
-                handle = bar(c,n / sum(n),'FaceColor',color,'FaceAlpha',BarAlpha);
+                handle = bar(c,n / sum(n),'FaceColor',color,...
+                    'FaceAlpha',BarAlpha,...
+                    'EdgeColor','none');
             else
-                handle = bar(c,n,'FaceColor',color,'FaceAlpha',BarAlpha);
+                handle = bar(c,n,'FaceColor',color,...
+                    'FaceAlpha',BarAlpha,...
+                    'EdgeColor','none');
             end
         case 'line'
             if fraction == true

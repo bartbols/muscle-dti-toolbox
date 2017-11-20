@@ -38,7 +38,7 @@ tic
 p = inputParser;
 addRequired(p,'DTItracts',@(x) isstruct(x) || exist(x,'file')==2)
 addRequired(p,'SurfModel',@(x) isstruct(x) || endsWith(x,'.stl','IgnoreCase',true))
-addParameter(p,'aponeurosis',[],@(x) isstruct(x) || endsWith(x,'.stl','IgnoreCase',true))
+addParameter(p,'aponeurosis',[])
 parse(p,DTItracts,SurfModel,varargin{:})
 
 aponeurosis = p.Results.aponeurosis;
@@ -149,7 +149,7 @@ for fibnr =  1:nFib
         % Select the longest continuous section inside the muscle surface
         fibindex_trunc(fibnr,1) = p(startIndex(maxIndex));
         fibindex_trunc(fibnr,2) = p(endIndex(maxIndex));
-        length_trunc(fibnr)     = (nSteps-1) * DTItracts.stepsize;
+        length_trunc(fibnr)     = (nSteps-1) * DTItracts.TrackSettings.StepSize;
     end
     % Make sure the startpoint (column 1 in fibindex_trunc) has a lower z-value than
     % the endpoint (column2 in fibindex_trunc).
@@ -171,7 +171,7 @@ elseif nargout == 2
     varargout{2} = length_trunc;
 end
 t_elapsed = toc;
-fprintf('Time used for truncating fibres: %.2f\n',t_elapsed)
+fprintf('It took %.2f seconds to truncate fibre tracts.\n',t_elapsed)
 % fprintf('completed\n')
 close(hwait)
 end % of function

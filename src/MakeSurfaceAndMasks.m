@@ -210,9 +210,9 @@ try
             % Make a file with isotropic dimensions for surface model generation.
             commandTxt = sprintf('c3d -int 3 %s -resample-mm 1.5x1.5x1.5mm -o %s',...
                 fullfile(tmpdir,'mask.nii.gz'),fullfile(tmpdir,'mask_iso.nii.gz'));
-            [status,cmdout] = system(commandTxt);
+            [~,cmdout] = system(commandTxt);
             % Check if Convert 3D is installed.
-            if ~isempty(strfind(cmdout,'not recognized as an internal or external command'))
+            if contains(cmdout,'not recognized as an internal or external command')
                 error('Convert3D not found. Please install Convert3D and add to the path environment.')
             end
             % Read into the workspace
@@ -328,7 +328,8 @@ try
             
             % Create the boundary mask
             boundary_mask = full_mask;
-            boundary_mask.img = cast(bwperim(boundary_mask.img,4),'like',boundary_mask.img);
+%             boundary_mask.img = cast(bwperim(boundary_mask.img,4),'like',boundary_mask.img);
+            boundary_mask.img = cast(~boundary_mask.img,'like',boundary_mask.img);
             
             % Remove n voxels from the boundary to make a seed mask
             seed_mask = full_mask;

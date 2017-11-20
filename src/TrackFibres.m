@@ -29,7 +29,7 @@ function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings )
 %    - MaxLength   : maximum length (in mm) of the tracts. Default: 200
 %    - FA_threshold: minimum threshold for FA; tracts can only pass through
 %                    voxels above this threshold. Default: 0.1
-%    - Stepsize    : stepsize for propagating tracts (in mm). Default: 1
+%    - StepSize    : step size for propagating tracts (in mm). Default: 1
 %    - SeedCount   : maximum number of seeds (doesn't need to be set if
 %                    FiberCount is already defined)
 %    - MaxAngle    : maximum angle in degrees between subsequent tract segments.
@@ -54,7 +54,6 @@ function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings )
 %            - tracts_xyz: points on the tract segments in global
 %            coordinates 
 %            - length_mm: tract lengths in millimetres
-%            - stepsize: stepsize for fibre tracking in mm
 %
 %          2) A logical 'StopFlag': false (0) means no fibres were found
 %             in the maximum time and true (1) means fibre tracking was
@@ -72,7 +71,7 @@ function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings )
 % - BB, 09/02/2017: added conversion from voxel coordinates to global
 % coordinates. DTI voxelsize can either be provided as field 'VoxelSize' in
 % the input structure TrackSettings, or it will be read from the source
-% file (fibre file). The fields tracts_xyz, stepsize and length_mm are
+% file (fibre file). The fields tracts_xyz and length_mm are
 % added to DTItracts.
 % - BB 27/02/2017: 
 %     - changed input field in filename from .Source to .fib
@@ -102,7 +101,7 @@ validateattributes(filename,{'struct'},{'nonempty'})
 default.MinLength    = 20;
 default.MaxLength    = 200;
 default.FA_threshold = 0.1;
-default.Stepsize     = 1;
+default.StepSize     = 1;
 default.MaxAngle     = 10;
 default.Smoothing    = 0;
 default.MaxTime      = 30;
@@ -274,14 +273,14 @@ end
 CommandTxt = horzcat(CommandTxt,sprintf(' --fa_threshold=%-5.3f',TrackSettings.FA_threshold));
 
 % Set the step size, if it is defined
-fprintf('%-20s: ','Stepsize (mm)')
-if isfield(TrackSettings,'Stepsize')
-    fprintf('%.2f\n',TrackSettings.Stepsize)
+fprintf('%-20s: ','Step size (mm)')
+if isfield(TrackSettings,'StepSize')
+    fprintf('%.2f\n',TrackSettings.StepSize)
 else
-    fprintf('not defined. Default of %.2f is used.\n',default.Stepsize)
-    TrackSettings.Stepsize = default.Stepsize;
+    fprintf('not defined. Default of %.2f is used.\n',default.StepSize)
+    TrackSettings.StepSize = default.StepSize;
 end
-CommandTxt = horzcat(CommandTxt,sprintf(' --step_size=%-5.3f',TrackSettings.Stepsize));
+CommandTxt = horzcat(CommandTxt,sprintf(' --step_size=%-5.3f',TrackSettings.StepSize));
 
 % Set the number of fibers, if it is defined
 fprintf('%-20s: ','Number of fibers')
@@ -399,6 +398,7 @@ else
     DTItracts.FileNames     = filename;
     DTItracts.TrackSettings = TrackSettings;
     DTItracts.length        = DTItracts.length';
+    DTItracts.TrackSettings.algorithm = 'dsi_studio';
     
     % Add the field 'fibindex' which is a m x 2 array where m is the number
     % of fibers. The first column contains the index of the first point in
@@ -437,8 +437,7 @@ else
     tracts_glob = T * [tracts;ones(1,size(tracts,2))];
     DTItracts.tracts_xyz = tracts_glob(1:3,:);
 
-    DTItracts.stepsize    = TrackSettings.Stepsize;
-    DTItracts.length_mm   = (DTItracts.length-1) * DTItracts.stepsize;
+    DTItracts.length_mm   = (DTItracts.length-1) * TrackSettings.StepSize;
     
     save(filename.Tracts,'-struct','DTItracts');
 end

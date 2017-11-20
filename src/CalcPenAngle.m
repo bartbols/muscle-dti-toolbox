@@ -35,7 +35,7 @@ p = inputParser;
 addRequired(p,'DTItracts',@isstruct)
 addRequired(p,'surf_model',@isstruct)
 addParameter(p,'radius',2.5,@(x) validateattributes(x,{'numeric'},{'scalar'}) )
-addParameter(p,'aponeurosis',[],@(x) isstruct(x) || endsWith(x,'.stl','IgnoreCase',true))
+addParameter(p,'aponeurosis',[])
 
 parse(p,DTItracts,surf_model,varargin{:})
 radius      = p.Results.radius;
@@ -146,7 +146,7 @@ for fibnr = 1:nFibres
         
         
     end
-    
-    t_elapsed = toc;
-    fprintf('Time used for calculating pennation angle: %.2f\n',t_elapsed)
+end
+t_elapsed = toc;
+fprintf('It took %.2f seconds to calculate pennation angles.\n',t_elapsed)
 end % of function

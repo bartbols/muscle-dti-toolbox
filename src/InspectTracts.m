@@ -377,9 +377,12 @@ if PlotStats == true
         '\lambda_1','1e-3 mm^2/s',0.05,'lambda1';...
         '\lambda_2','1e-3 mm^2/s',0.05,'lambda2';...
         '\lambda_3','1e-3 mm^2/s',0.05,'lambda3'};
+    
     % Make variable abs_ext (absolute extension = sum of extension at
     % either end)
-    DTItracts.abs_ext = nansum(DTItracts.ext,2);
+    if isfield(DTItracts,'ext')
+        DTItracts.abs_ext = nansum(DTItracts.ext,2);
+    end
     CELLDATA = struct2cell(DTItracts);
     varNames = fieldnames(DTItracts);
 %     subplotnr = 1;

@@ -35,7 +35,7 @@ for fibnr = 1:nFib
     curvature(fibnr) = mean(curv) * 1000; % convert from 1/mm to 1/m
 end
 t_elapsed = toc;
-fprintf('Time used for calculating fibre curvature: %.2f\n',t_elapsed)
+fprintf('It took %.2f seconds to calculate curvatures.\n',t_elapsed)
 
 close(hwait)
 end

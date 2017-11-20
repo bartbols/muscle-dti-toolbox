@@ -1,4 +1,4 @@
-function varargout = CalcDTI_indices( DTItracts, fib_fname )
+function varargout = CalcDTI_indices( DTItracts, fib_fname,varargin)
 %CALCDTI_INDICES Loads the eigenvalue data from the the .fib.gz-file and
 % interpolates the tracts to obtain FA, MD, lambda1, lambda2 and lambda3
 % values along each of the tracts in 'DTItracts'. The mean value for a
@@ -17,6 +17,10 @@ function varargout = CalcDTI_indices( DTItracts, fib_fname )
 %               and fibindex_trunc.
 % - fib_fname : the filename of the fibre file created with DSI studio.
 %               Must have extension .fib.gz
+% Optional, as 'parameter',<value> pair:
+% - flip      : scalar value 1, 2 or 3 indicating the dimension to flip the
+%               image over prior to interpolation.
+% 
 %
 % ----------------- OUTPUT -----------------
 % If one output argument is provided DTItracts is returned with the 
@@ -34,14 +38,25 @@ function varargout = CalcDTI_indices( DTItracts, fib_fname )
 %
 
 %% Check inputs
-if nargin ~= 2
-    error('Wrong number of input arguments. Usage is CalcTractIndices( DTItracts, fib_fname )')
-end
-
 p = inputParser;
 addRequired(p,'DTItracts',@isstruct)
-addRequired(p,'fib_fname',@(x) ~isempty(strfind(x,'.fib.gz')))
-parse(p,DTItracts,fib_fname)
+addRequired(p,'fib_fname',@(x) contains(x,'.fib'))
+addParameter(p,'flip',[],@isscalar)
+parse(p,DTItracts,fib_fname,varargin{:})
+
+flip2 = p.Results.flip;
+
+if isempty(flip2)
+    if isfield(DTItracts.TrackSettings,'algorithm')
+        if strcmp(DTItracts.TrackSettings.algorithm,'matlab')
+            % When fibre tracking is performed in MATLAB from DSI-studio
+            % derived FIB-files, the parameter maps needs to be flipped
+            % around the second dimension prior to interpolation.
+            flip2 = 2;
+        end
+    end
+end
+    
 
 % Check if all required fields are available in DTItracts and surface
 if ~isfield(DTItracts,'tracts')
@@ -76,6 +91,16 @@ L1_map  = reshape(data.ad,data.dimension);
 L2_map  = reshape(data.rd1,data.dimension);
 L3_map  = reshape(data.rd2,data.dimension);
 
+if ~isempty(flip2) && flip2 ~= 0
+    % Flip the dimensions
+    FA_map = flip(FA_map,flip2);
+    MD_map = flip(MD_map,flip2);
+    L1_map = flip(L1_map,flip2);
+    L2_map = flip(L2_map,flip2);
+    L3_map = flip(L3_map,flip2);
+end
+
+
 nFib    = size(DTItracts.fibindex_trunc,1);
 fa      = NaN(nFib,1);
 md      = NaN(nFib,1);
@@ -104,14 +129,14 @@ for fibnr = 1 : 1 : nFib
     y = DTItracts.tracts(2,first:d:last)+1;
     z = DTItracts.tracts(3,first:d:last)+1;
     fa(fibnr)      = nanmean(interp3(FA_map,y,x,z));
-    md(fibnr)     = nanmean(interp3(MD_map,y,x,z));
+    md(fibnr)      = nanmean(interp3(MD_map,y,x,z));
     lambda1(fibnr) = nanmean(interp3(L1_map,y,x,z));
     lambda2(fibnr) = nanmean(interp3(L2_map,y,x,z));
     lambda3(fibnr) = nanmean(interp3(L3_map,y,x,z));
     
 end
 t_elapsed = toc;
-fprintf('Time used for calculating DTI indices: %.2f\n',t_elapsed)
+fprintf('It took %.2f seconds to calculate DTI indices.\n',t_elapsed)
 
 close(hwait)
 

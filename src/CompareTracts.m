@@ -49,6 +49,9 @@ names  = p.Results.input2;
 if isempty(input1)
     % No input arguments are provided. Select files from a dialog box.
     [filename, pathname] = uigetfile('*.mat','Select multiple DTI tract files','MultiSelect','on');
+    if filename == 0
+        return
+    end
     if ischar(filename)
         % Only one file is selected. Load this file.
         filenames{1} = fullfile(pathname,filename);
@@ -71,9 +74,8 @@ end
 %% Load the data
 if ~isstruct(input1)
     N = length(filenames);
-    for i = 1 : N
-        DTItracts(i) = load(filenames{i});
-    end
+    % Use combineStruct to account for dissimlar structures
+    DTItracts = combineStruct(filenames);
 else
     DTItracts = input1;
     N = length(DTItracts);

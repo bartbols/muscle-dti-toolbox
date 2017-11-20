@@ -50,7 +50,7 @@ tic
 p = inputParser;
 addRequired(p,'DTItracts',@(x) isstruct(x) || exist(x,'file')==2)
 addRequired(p,'SurfModel',@(x) isstruct(x) || endsWith(x,'.stl','IgnoreCase',true))
-addParameter(p,'aponeurosis',[],@(x) isstruct(x) || endsWith(x,'.stl','IgnoreCase',true))
+addParameter(p,'aponeurosis',[])
 addParameter(p,'order',3,@(x) isscalar(x) && x>0)
 parse(p,DTItracts,SurfModel,varargin{:})
 
@@ -298,6 +298,6 @@ end
     
 
 t_elapsed = toc;
-fprintf('Time used for polynomial fitting and extrapolating fibres: %.2f\n',t_elapsed)
+fprintf('It took %.2f seconds to extrapolate fibre tracts.\n',t_elapsed)
 close(hwait)
 end % of function
