@@ -146,7 +146,8 @@ for fibnr =  1:nFib
 %         'yo','MarkerSize',6)
     
     if isempty(len) || nSteps < 5
-        % No or too few points are inside the surface
+        % No or too few points are inside the surface and outside the
+        % aponeurosis
         continue
     else
         % Select the longest continuous section inside the muscle surface

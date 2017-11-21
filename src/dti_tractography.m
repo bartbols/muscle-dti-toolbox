@@ -159,7 +159,6 @@ elseif strcmp(type,'fsl')
         0 0 0 1];
     sgn = sign(diag(T(1:3,1:3)));
     voxelsize = EV1.hdr.dime.pixdim(2:4);
-    
     % Get FA map
     if isempty(FA)
         error('If fsl data is provided, the FA map should be provided as well. Add ''FA'',<fa_filename> to the input.')
@@ -169,6 +168,7 @@ elseif strcmp(type,'fsl')
     end
 end
 clear EV1
+imdim = size(V);
 
 %% Load region of termination
 if ~isempty(TER)
@@ -269,8 +269,8 @@ for start_dir   = [-1 1] % bi-directional tracking
                 fa_value < settings.FA_threshold(2);
         
          % ============= region of termination =====================
-         % Check if current step is inside region of termination. If so, 
-         % this will be the last step for the tract.
+         % Check if current step is inside region of termination. If so,
+         % terminate tracking.
          if ~isempty(TER)
              crit3 = interp3(TER.img,...
                         tracts(2,seed_incl,stepnr)+1,...
@@ -280,8 +280,19 @@ for start_dir   = [-1 1] % bi-directional tracking
              crit3 = true(size(crit1));
                  
          end
-        
-         %% Exclude fibres from next step based on stopping criteria
+         
+         % ============= outside image domain =====================
+         % Check if the next step is outside the image. If so, terminate tracking
+         
+         crit3 = interp3(TER.img,...
+                    tracts(2,seed_incl,stepnr)+1,...
+                    tracts(1,seed_incl,stepnr)+1,...
+                    tracts(3,seed_incl,stepnr)+1,'nearest') == 0;
+     
+         crit3 = true(size(crit1));
+                 
+         
+                 %% Exclude fibres from next step based on stopping criteria
          excluded = ~crit1 | ~crit2 | ~crit3;
          
          % Update seed indices of fibres that are still included

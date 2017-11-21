@@ -60,7 +60,7 @@ if exist('FindNearestT_mex','file') == 3
 else
     use_mex = false;
 end
-use_mex
+
 %% Read inputs
 % if tract filename is provided, read the file.
 if ~isstruct(DTItracts)
