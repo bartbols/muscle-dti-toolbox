@@ -19,12 +19,26 @@ function IN = inside_surface(FV,pts)
 VERT = FV.vertices;
 FAC  = FV.faces;
 
-% Get all edge vectors
+% Get all vertices locations
 V0 = VERT(FAC(:,1),:);
 V1 = VERT(FAC(:,2),:);
 V2 = VERT(FAC(:,3),:);
 
-IN = false(size(pts,1),1);
+% Calculate edge vectors
+U = V1 - V0; 
+V = V2 - V0;
+
+% Calculate dot product of edge vector
+UU = sum(U.*U,2);
+UV = sum(U.*V,2);
+VV = sum(V.*V,2);
+DD = UV.*UV - UU.*VV;
+
+% Calculate normal of faces
+N = cross(U,V);
+
+nP = size(pts,1);
+NINT = zeros(nP,1); % Number of intersections
 for i = 1 : size(pts,1)
     point = pts(i,:);
     
@@ -35,19 +49,18 @@ for i = 1 : size(pts,1)
     % computation much faster.
     
     d  = [1 0 0]; % ray direction vector in positive x-direction
-    excl = (V0(:,2) < point(2) & V1(:,2) < point(2) & V2(:,2) < point(2)) | ... % all vertices below y = yp (i.e. triangle is completely below plane y = yp)
-        (V0(:,2) > point(2) & V1(:,2) > point(2) & V2(:,2) > point(2)) | ... % all vertices above y = yp
-        (V0(:,3) < point(3) & V1(:,3) < point(3) & V2(:,3) < point(3)) | ... % all vertices below z = zp
-        (V0(:,3) > point(3) & V1(:,3) > point(3) & V2(:,3) > point(3));      % all vertices above z = zp
-    incl = ~excl;
+    excl = (V0(:,2) < pts(i,2) & V1(:,2) < pts(i,2) & V2(:,2) < pts(i,2)) | ... % all vertices below y = yp (i.e. triangle is completely below plane y = yp)
+           (V0(:,2) > pts(i,2) & V1(:,2) > pts(i,2) & V2(:,2) > pts(i,2)) | ... % all vertices above y = yp
+           (V0(:,3) < pts(i,3) & V1(:,3) < pts(i,3) & V2(:,3) < pts(i,3)) | ... % all vertices below z = zp
+           (V0(:,3) > pts(i,3) & V1(:,3) > pts(i,3) & V2(:,3) > pts(i,3));      % all vertices above z = zp
     %
     %     figure;hold on axis equal patch('vertices',VERT,'faces',FAC,...
     %         'FaceAlpha',0.2,'FaceColor','g')
-    %     patch('vertices',VERT,'faces',FAC(incl,:),...
+    %     patch('vertices',VERT,'faces',FAC(~excl,:),...
     %         'FaceAlpha',1,'FaceColor','r')
-    %     %     plot3(point(1),point(2),point(3),'ro',... %
+    %     %     plot3( pts(i,1), pts(i,2), pts(i,3),'ro',... %
     %     'MarkerFaceColor','r','MarkerEdgeColor','none',... %
-    %     'MarkerSize',8) quiver3(point(1),point(2),point(3),...
+    %     'MarkerSize',8) quiver3( pts(i,1), pts(i,2), pts(i,3),...
     %         d(1),d(2),d(3),10,'-','filled','LineWidth',3,... 'Color','r')
     %
     %     view(-34,-9)
@@ -56,22 +69,11 @@ for i = 1 : size(pts,1)
     % face. The following code is the vector implementation of the c-code
     % given at.:
     % http://geomalgorithms.com/a06-_intersect-2.html#intersect3D_RayTriangle()
-    nF = sum(incl);
+    nF = sum(~excl);
     
-    U = V1(incl,:) - V0(incl,:); % edge vectors
-    V = V2(incl,:) - V0(incl,:);
-    
-    UU = sum(U.*U,2);
-    UV = sum(U.*V,2);
-    VV = sum(V.*V,2);
-    DD = UV.*UV - UU.*VV;
-    
-    % Calculate normal of faces
-    N = cross(U,V);
-    
-    W0 = ones(nF,1) * point - V0(incl,:);
-    A = -sum(N .* W0,2);
-    B =  sum(N .* (ones(nF,1) * d),2);
+    W0 = ones(nF,1) * point - V0(~excl,:);
+    A = -sum(N(~excl,:) .* W0,2);
+    B =  sum(N(~excl,:) .* (ones(nF,1) * d),2);
     
     % if R < 0 the ray points away from the triangle and no intersection
     % will be found.
@@ -80,19 +82,19 @@ for i = 1 : size(pts,1)
     % calculate intersection of ray and plane
     II = ones(nF,1) * point + (R*ones(1,3)) .* (ones(nF,1) * d);
     
-    W = II - V0(incl,:);
-    WV = sum(W.*V,2);
-    WU = sum(W.*U,2);
-    S = (UV .* WV - VV .* WU) ./ DD;
-    T = (UV .* WU - UU .* WV) ./ DD;
+    W = II - V0(~excl,:);
+    WV = sum(W.*V(~excl,:),2);
+    WU = sum(W.*U(~excl,:),2);
+    S = (UV(~excl,:) .* WV - VV(~excl,:) .* WU) ./ DD(~excl,:);
+    T = (UV(~excl,:) .* WU - UU(~excl,:) .* WV) ./ DD(~excl,:);
     
     % Count how many times the surface was intersected
-    nint = sum((S >= 0 & S <= 1 & T >= 0 & (S+T) <= 1) & R >= 0);
-    
-    % return false if even, and true if odd
-    IN(i) = logical(mod(nint,2));
+    NINT(i) = sum((S >= 0 & S <= 1 & T >= 0 & (S+T) <= 1) & R >= 0);
     
 end
+
+% An odd/even number of intersections means the points is inside/outside.
+IN = mod(NINT,2)~=0;
 
 end % of function
 

@@ -16,22 +16,34 @@ function curvature = CalcCurvature( PolyCoeff)
 % - curvature : n x 1 array of mean curvatures per fibre.
 %
 nFib = length(PolyCoeff);
-
-hwait = waitbar(0,'',...
+hwait = waitbar(0,sprintf('Calculating curvature for %d fibres',nFib),...
     'Name','Progress bar CalcCurvature');
 
+
+if exist('CalcKappa_mex','file') == 3
+    use_mex = true;
+else
+    use_mex = false;
+end
 tic
 curvature = NaN(nFib,1);
 for fibnr = 1:nFib
+    if any(round(linspace(1,nFib,11))==fibnr)
+        waitbar(fibnr/nFib,hwait)
+    end
+    
     if isempty(PolyCoeff(fibnr).x)
         continue
     end
-    waitbar(fibnr/nFib,hwait,sprintf('Calculating curvature of fibre %d of %d',fibnr,nFib))
 
     % sample at 100 equal intervals of t
     t = linspace(PolyCoeff(fibnr).t0,...
         PolyCoeff(fibnr).t1,100);
-    curv = CalcKappa(PolyCoeff(fibnr),t);
+    if use_mex == true
+        curv = CalcKappa_mex(PolyCoeff(fibnr),t');
+    else
+        curv = CalcKappa(PolyCoeff(fibnr),t');
+    end
     curvature(fibnr) = mean(curv) * 1000; % convert from 1/mm to 1/m
 end
 t_elapsed = toc;

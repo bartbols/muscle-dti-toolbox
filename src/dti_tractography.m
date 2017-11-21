@@ -401,10 +401,16 @@ DTItracts.TrackSettings.algorithm = 'matlab';
 
 %% Save the results
 if ~isempty(savename)
+    % Appends '.mat' if the extension is not provided.
     if ~endsWith(savename,'.mat')
         savename = [savename '.mat'];        
     end
+    % Create directory, if it doesn't exist yet.
+    if exist(fileparts(savename),'dir') ~= 7
+        mkdir(fileparts(savename));
+    end
     save(savename,'-struct','DTItracts')
+    fprintf('Tracts saved as %s\n',savename)
 end
 
 end

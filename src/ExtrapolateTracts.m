@@ -42,8 +42,6 @@ function varargout = ExtrapolateTracts( DTItracts,SurfModel,varargin )
 %
 % [PolyCoeff,fibrelength,ext,pct_ext,endpoints,residual]
 %
-% Uses the function inside_surface.m to determine whether a point is inside
-% or outside the surface.
 
 %% Check inputs
 tic
@@ -57,6 +55,12 @@ parse(p,DTItracts,SurfModel,varargin{:})
 order       = p.Results.order;
 aponeurosis = p.Results.aponeurosis;
 
+if exist('FindNearestT_mex','file') == 3
+    use_mex = true;
+else
+    use_mex = false;
+end
+use_mex
 %% Read inputs
 % if tract filename is provided, read the file.
 if ~isstruct(DTItracts)
@@ -114,9 +118,12 @@ residual    = NaN(nFib,1); % residual of polynomial fit
 attach_type = NaN(nFib,2); % array indicating, for each endpoint, whether attachment is on muscle (1) or aponeurosis (2)
 
 
-hwait = waitbar(0,'','Name','Progress bar ExtrapolateTracts');
+hwait = waitbar(0,sprintf('Extrapolating %d fibres',nFib),...
+    'Name','Progress bar ExtrapolateTracts');
 for fibnr = 1:1:nFib
-    waitbar(fibnr/nFib,hwait,sprintf('Extrapolating fibre %d of %d',fibnr,nFib))
+    if any(round(linspace(1,nFib,11))==fibnr)
+        waitbar(fibnr/nFib,hwait)
+    end
     
     first = DTItracts.fibindex_trunc(fibnr,1);
     last  = DTItracts.fibindex_trunc(fibnr,2);
@@ -147,7 +154,11 @@ for fibnr = 1:1:nFib
     PolyCoeff(fibnr,1) = coeff;            
     
     % Calculate residual distance of data points to polynomial fit
-    [~,dist] = FindNearestT(coeff,tractpoints);
+    if use_mex == true
+        [~,dist] = FindNearestT_mex(coeff,tractpoints);
+    else
+        [~,dist] = FindNearestT(coeff,tractpoints);
+    end
     residual(fibnr) = abs(mean(dist));
    
 % Find projection of linearly extrapolated line from the endpoints to the
@@ -161,10 +172,6 @@ for fibnr = 1:1:nFib
               polyval(polyder(coeff.z),coeff.t0)];
 %         d1 = d1 / norm(d1); 
 
-%         if inside_surface(SurfModel,p1) == 0
-%             disp('point outside surface')
-%         end
-        
         tract_dir1 =  [polyval(coeff.x,1),polyval(coeff.y,1),polyval(coeff.z,1)] - p1;
         if sign(dot(d1,tract_dir1)) == 1
             % Change sign of direction

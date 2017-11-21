@@ -29,7 +29,7 @@ function varargout = TruncateTracts( DTItracts,SurfModel,varargin)
 % 'length_trunc' are added to DTItracts. If two outputs are provided, the
 % first output is 'fibindex_trunc' and the second output 'length_trunc'
 %
-% Uses the function inside_surface.m to determine whether a point is inside
+% Uses the function inpolyhedron.m to determine whether a point is inside
 % or outside the surface.
 
 %% Check inputs
@@ -93,9 +93,8 @@ hwait = waitbar(0,'Calculating which tract points are inside the muscle',...
 % Calculate points are inside the surface model. It is much faster to do 
 % this for all points at once then inside the loop for each fibre 
 % individually.
-
-INSIDE_muscle =  inside_surface(SurfModel,DTItracts.tracts_xyz');
-
+% INSIDE_muscle =  inside_surface(SurfModel,DTItracts.tracts_xyz');
+INSIDE_muscle =  inpolyhedron(SurfModel,DTItracts.tracts_xyz');
 
 if isempty(aponeurosis)
     % No aponeurosis is provide, so all points are outside the aponeurosis.
@@ -104,11 +103,15 @@ else
     % An aponeurosis has been provided. Calculate which points are outside 
     % the aponeurosis.    
     waitbar(0,hwait,'Calculating which tract points are inside the aponeurosis')
-    OUTSIDE_apo = ~inside_surface(aponeurosis,DTItracts.tracts_xyz');
+%     OUTSIDE_apo = ~inside_surface(aponeurosis,DTItracts.tracts_xyz');
+    OUTSIDE_apo = ~inpolyhedron(aponeurosis,DTItracts.tracts_xyz');
 end
-
+waitbar(0,hwait,sprintf('Truncating %d fibres',nFib))
+tic
 for fibnr =  1:nFib
-    waitbar(fibnr/nFib,hwait,sprintf('Truncating fibre %d of %d',fibnr,nFib))
+    if any(round(linspace(1,nFib,11))==fibnr)
+        waitbar(fibnr/nFib,hwait)
+    end
     
     % Remove tract points outside the muscle volume
     if DTItracts.fibindex(fibnr,1) < DTItracts.fibindex(fibnr,2)
@@ -159,7 +162,7 @@ for fibnr =  1:nFib
         
     end
 end
-
+toc
 % Return as separate output arguments if 2 outputs are requested or add to
 % structure 'DTItracts' when one output is requested.
 if nargout == 1

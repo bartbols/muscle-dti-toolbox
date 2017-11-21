@@ -109,8 +109,23 @@ lambda2 = NaN(nFib,1);
 lambda3 = NaN(nFib,1);
 
 clear data
+waitbar(0,hwait,sprintf('Calculating DTI indices for %d fibres',nFib))
+
+% Interpolate maps of the DTI index at the tract points. Add 1 because
+% the tract points are indexed from 0 (voxel 1  = index 0), while the
+% maps used for interpolation are indexed from 1.
+FA = interp3(FA_map,DTItracts.tracts(2,:)+1,DTItracts.tracts(1,:)+1,DTItracts.tracts(3,:)+1);
+MD = interp3(MD_map,DTItracts.tracts(2,:)+1,DTItracts.tracts(1,:)+1,DTItracts.tracts(3,:)+1);
+L1 = interp3(L1_map,DTItracts.tracts(2,:)+1,DTItracts.tracts(1,:)+1,DTItracts.tracts(3,:)+1);
+L2 = interp3(L2_map,DTItracts.tracts(2,:)+1,DTItracts.tracts(1,:)+1,DTItracts.tracts(3,:)+1);
+L3 = interp3(L3_map,DTItracts.tracts(2,:)+1,DTItracts.tracts(1,:)+1,DTItracts.tracts(3,:)+1);
+
 for fibnr = 1 : 1 : nFib
-    waitbar(fibnr/nFib,hwait,sprintf('Calculating DTI indices for fibre %d of %d',fibnr,nFib))
+    
+    if any(round(linspace(1,nFib,11))==fibnr)
+        waitbar(fibnr/nFib,hwait)
+    end
+    
     first = DTItracts.fibindex_trunc(fibnr,1);
     last  = DTItracts.fibindex_trunc(fibnr,2);
     if any(isnan([first,last]))
@@ -122,18 +137,12 @@ for fibnr = 1 : 1 : nFib
         d = -1;
     end
     
-    % Interpolate maps of the DTI index at the tract point. Add 1 because
-    % the tract points are indexed from 0 (voxel 1  = index 0), while the
-    % maps used for interpolation are indexed from 1.
-    x = DTItracts.tracts(1,first:d:last)+1;
-    y = DTItracts.tracts(2,first:d:last)+1;
-    z = DTItracts.tracts(3,first:d:last)+1;
-    fa(fibnr)      = nanmean(interp3(FA_map,y,x,z));
-    md(fibnr)      = nanmean(interp3(MD_map,y,x,z));
-    lambda1(fibnr) = nanmean(interp3(L1_map,y,x,z));
-    lambda2(fibnr) = nanmean(interp3(L2_map,y,x,z));
-    lambda3(fibnr) = nanmean(interp3(L3_map,y,x,z));
-    
+    % Calculate mean value along tract
+    fa(fibnr)      = nanmean(FA(first:d:last));
+    md(fibnr)      = nanmean(MD(first:d:last));
+    lambda1(fibnr) = nanmean(L1(first:d:last));
+    lambda2(fibnr) = nanmean(L2(first:d:last));
+    lambda3(fibnr) = nanmean(L3(first:d:last));
 end
 t_elapsed = toc;
 fprintf('It took %.2f seconds to calculate DTI indices.\n',t_elapsed)
