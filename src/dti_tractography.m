@@ -136,19 +136,13 @@ if strcmp(type,'dsi')
     FA = reshape(EV1.fa0,EV1.dimension);
     
     % Flip the primary eigenvector and FA map according to the transformation so
-    % that the map is compatible with the expected format in interp3vec.m
-    
-    % (Still needs checking for different types of data.)
-    sgn = sign(diag(T(1:3,1:3)));
-    if sgn(1) == -1
-        V  = flip(V,2);
-        FA = flip(FA,2);
-    end
-    if sgn(2) == -1
-        V  = flip(V,1);
-        FA = flip(FA,1);
-    end
-    
+    % that the map is compatible with the expected format in interp3vec.m.
+    % (Note: Regardless of the header information in the DTI NIfTI file,
+    % the second dimensions needs to be flipped and the sign of the 
+    % y-direction of the direction vectors needs to be changed.
+    V  = flip(V,2);
+    FA = flip(FA,2);
+    sgn = [1 -1 1]';
     
 elseif strcmp(type,'fsl')
     % Get the primary eigenvector data and transformation from the
@@ -158,7 +152,7 @@ elseif strcmp(type,'fsl')
          EV1.hdr.hist.srow_y;...
          EV1.hdr.hist.srow_z;...
          0 0 0 1];
-    sgn = sign(diag(T(1:3,1:3)));
+    sgn = sign(diag(T(1:3,1:3))); % <-- still needs checking
     voxelsize = EV1.hdr.dime.pixdim(2:4);
     % Get FA map
     if isempty(FA)
@@ -223,6 +217,7 @@ for start_dir   = [-1 1] % bi-directional tracking
 %         fprintf('Step number %d in direction %d\n',stepnr,start_dir);
         
         % !! the voxel coordinates in tracts are indexed from 0 (not 1) !!
+        use_mex = false;
         if use_mex == true
             d = interp3vec_mex(double(V),double(tracts(:,seed_incl,stepnr)));
         else
@@ -230,9 +225,8 @@ for start_dir   = [-1 1] % bi-directional tracking
         end
 
         % Rotate direction vectors to the correct coordinate system using the
-        % transform information from the NIfTI header. (This still needs
-        % checking for other images.)
-        d = d .*  (sgn([2 1 3])*ones(1,length(seed_incl)));
+        % transform information from the NIfTI header.
+        d = d .*  (sgn * ones(1,length(seed_incl)));
         
         if stepnr == 1
             s = ones(1,length(seed_incl)) * start_dir;

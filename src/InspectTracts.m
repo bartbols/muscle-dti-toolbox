@@ -68,7 +68,7 @@ addParameter(p,'Tracts',[],@(x) isstruct(x) || exist(x,'file')==2)
 addParameter(p,'ToPlot',{'raw','poly'},@(x) iscell(x) || ischar(x))
 
 % Surface model
-addParameter(p,'SurfModel',[],@(x) isstruct(x) || endsWith(x,'.stl','IgnoreCase',true))
+addParameter(p,'SurfModel',[],@(x) isstruct(x) || endsWith(lower(x),'.stl'))
 addParameter(p,'SurfModelColor','y',@(x) ischar(x) || isnumeric(x))
 addParameter(p,'SurfModelAlpha',0.25,@(x)validateattributes(x,{'numeric'},{'scalar'}))
 addParameter(p,'SurfModelEdgeColor','y',@(x) ischar(x) || isnumeric(x))
