@@ -24,6 +24,7 @@ if exist('CalcKappa_mex','file') == 3
     use_mex = true;
 else
     use_mex = false;
+    warning('The MEX-file CalcKappa_mex is not available on the MATLAB path. Curvature calculation may be slow.')
 end
 tic
 curvature = NaN(nFib,1);

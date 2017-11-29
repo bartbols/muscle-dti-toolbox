@@ -34,6 +34,8 @@ function varargout = ExtrapolateTracts( DTItracts,SurfModel,varargin )
 % - ext         : n x 2 array with extension (in mm) at each of the endpoints
 % - pct_ext     : n x 1 array with total extension as percentage of the total fibre length
 % - endpoints   : n x 2 x 3 array with xyz-location of extrapolated endpoints on the surface.
+% - endpoints_dir: n x 2 x 3 array with xyz-vector of the slope at the
+%                  endpoint
 % - residual    : residual of polynomial fit (absolute mean distance of tracts
 %                points to nearest point on the polynomial curve).
 %
@@ -58,6 +60,7 @@ aponeurosis = p.Results.aponeurosis;
 if exist('FindNearestT_mex','file') == 3
     use_mex = true;
 else
+    warning('The MEX-file FindNearestT_mex is not available on the MATLAB path. Extrapolation may be slow.')
     use_mex = false;
 end
 
@@ -76,6 +79,27 @@ if ~isstruct(SurfModel)
     end
 end
 
+% Calculate edge vectors etc of muscle model once to speed up performance 
+% of inside_surface and intersectRaySurface
+% Get all vertices locations
+data_musc.V0 = SurfModel.vertices(SurfModel.faces(:,1),:);
+data_musc.V1 = SurfModel.vertices(SurfModel.faces(:,2),:);
+data_musc.V2 = SurfModel.vertices(SurfModel.faces(:,3),:);
+
+% Calculate edge vectors
+data_musc.U = data_musc.V1 - data_musc.V0; 
+data_musc.V = data_musc.V2 - data_musc.V0;
+
+% Calculate dot product of edge vector
+data_musc.UU = sum(data_musc.U.*data_musc.U,2);
+data_musc.UV = sum(data_musc.U.*data_musc.V,2);
+data_musc.VV = sum(data_musc.V.*data_musc.V,2);
+data_musc.DD = data_musc.UV.*data_musc.UV - data_musc.UU.*data_musc.VV;
+
+% Calculate normal of faces
+data_musc.N = cross(data_musc.U,data_musc.V);
+
+
 % Read the aponeurosis surface, if provided
 if ~isempty(aponeurosis) && ~isstruct(aponeurosis)
     if exist(aponeurosis,'file') == 2
@@ -83,6 +107,29 @@ if ~isempty(aponeurosis) && ~isstruct(aponeurosis)
     else
         error('%s does not exist.',aponeurosis)
     end
+end
+
+if ~isempty(aponeurosis)
+    % Calculate edge vectors etc of the aponeurosis model to speed up 
+    % performance of inside_surface and intersectRaySurface
+    
+    % Get all vertices locations
+    data_apo.V0 = aponeurosis.vertices(aponeurosis.faces(:,1),:);
+    data_apo.V1 = aponeurosis.vertices(aponeurosis.faces(:,2),:);
+    data_apo.V2 = aponeurosis.vertices(aponeurosis.faces(:,3),:);
+
+    % Calculate edge vectors
+    data_apo.U = data_apo.V1 - data_apo.V0; 
+    data_apo.V = data_apo.V2 - data_apo.V0;
+
+    % Calculate dot product of edge vector
+    data_apo.UU = sum(data_apo.U.*data_apo.U,2);
+    data_apo.UV = sum(data_apo.U.*data_apo.V,2);
+    data_apo.VV = sum(data_apo.V.*data_apo.V,2);
+    data_apo.DD = data_apo.UV.*data_apo.UV - data_apo.UU.*data_apo.VV;
+
+    % Calculate normal of faces
+    data_apo.N = cross(data_apo.U,data_apo.V);
 end
 
 % Check if all required fields are available in DTItracts and surface
@@ -121,13 +168,18 @@ attach_type = NaN(nFib,2); % array indicating, for each endpoint, whether attach
 hwait = waitbar(0,sprintf('Extrapolating %d fibres',nFib),...
     'Name','Progress bar ExtrapolateTracts');
 for fibnr = 1:1:nFib
-    if any(round(linspace(1,nFib,11))==fibnr)
+    if any(round(linspace(1,nFib,50))==fibnr)
         waitbar(fibnr/nFib,hwait)
     end
     
     first = DTItracts.fibindex_trunc(fibnr,1);
     last  = DTItracts.fibindex_trunc(fibnr,2);
     if any(isnan([first,last]))
+        PolyCoeff(fibnr,1).x  = NaN(1,order+1);
+        PolyCoeff(fibnr,1).y  = NaN(1,order+1);
+        PolyCoeff(fibnr,1).z  = NaN(1,order+1);        
+        PolyCoeff(fibnr,1).t0 = NaN;
+        PolyCoeff(fibnr,1).t1 = NaN;
         continue
     end
     if first < last
@@ -170,9 +222,11 @@ for fibnr = 1:1:nFib
         d1 = [polyval(polyder(coeff.x),coeff.t0),...
               polyval(polyder(coeff.y),coeff.t0),...
               polyval(polyder(coeff.z),coeff.t0)];
-%         d1 = d1 / norm(d1); 
+        d1 = d1 / norm(d1); 
 
-        tract_dir1 =  [polyval(coeff.x,1),polyval(coeff.y,1),polyval(coeff.z,1)] - p1;
+        tract_dir1 =  [polyval(coeff.x,1),...
+                       polyval(coeff.y,1),...
+                       polyval(coeff.z,1)] - p1;
         if sign(dot(d1,tract_dir1)) == 1
             % Change sign of direction
             d1 = -d1;
@@ -185,22 +239,23 @@ for fibnr = 1:1:nFib
         d2 = [polyval(polyder(coeff.x),coeff.t1),...
               polyval(polyder(coeff.y),coeff.t1),...
               polyval(polyder(coeff.z),coeff.t1)];
-%         d1 = d1 / norm(d1); 
+        d2 = d2 / norm(d2); 
         
-        tract_dir2 =  [polyval(coeff.x,nPoints-2),polyval(coeff.y,nPoints-2),polyval(coeff.z,nPoints-2)] - p2;
+        tract_dir2 =  [polyval(coeff.x,nPoints-2),...
+                       polyval(coeff.y,nPoints-2),...
+                       polyval(coeff.z,nPoints-2)] - p2;
         if sign(dot(d2,tract_dir2)) == 1
             % Change sign of direction
             d2 = -d2;
         end
         
         % Calculate intersection of projection of the endpoints with the surface model
-%         endpoints(fibnr,:,:) = intersectRaySurface(SurfModel,[p1;p2],[d1;d2]);
-        int_musc = intersectRaySurface(SurfModel,[p1;p2],[d1;d2]);
+        int_musc = intersectRaySurface(SurfModel,[p1;p2],[d1;d2],true,data_musc);
         
         if ~isempty(aponeurosis)
             % Also calculate the intersection of the projection of the
             % endpoints with the aponeurosis
-            int_apo = intersectRaySurface(aponeurosis,[p1;p2],[d1;d2],false);
+            int_apo = intersectRaySurface(aponeurosis,[p1;p2],[d1;d2],false,data_apo);
             
             % Calculate distance from endpoints to intersection with muscle and
             % with the aponeurosis. Use the closest one.

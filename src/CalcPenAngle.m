@@ -91,6 +91,8 @@ for fibnr = 1:nFibres
             % ... if attachment is on the aponeurosis
             C = C_apo;
             model = aponeurosis;
+        else
+            continue
         end
         tmp = C - repmat(squeeze(DTItracts.endpoints(fibnr,ep,:))',size(C,1),1);
         dist2centre = sqrt(sum(tmp.^2,2));

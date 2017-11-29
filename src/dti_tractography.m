@@ -26,7 +26,7 @@ function DTItracts = dti_tractography( EV1,seeds,settings,varargin)
 %                            maximum FA value 
 %            - MaxAngle  : maximum turning angle in degrees
 %
-% Optional inputs:
+% Optional inputs, provided as 'parameter',<value> pairs:
 % DTI      : A NIfTI structure or filename of a NIfTI file containing the
 %            DTI data. This field is mandatory when EV1 is a FIB-file from
 %            DSI Studio.
@@ -80,6 +80,7 @@ end
 if exist('interp3vec_mex','file') == 3
     use_mex = true;
 else
+    warning('The MEX-file interp3vec_mex is not available on the MATLAB path. Fibre tracking may be slow.')
     use_mex = false;
 end
 %% Load the EV1 data
@@ -154,9 +155,9 @@ elseif strcmp(type,'fsl')
     % NIfTI data
     V = EV1.img;
     T = [EV1.hdr.hist.srow_x;...
-        EV1.hdr.hist.srow_y;...
-        EV1.hdr.hist.srow_z;...
-        0 0 0 1];
+         EV1.hdr.hist.srow_y;...
+         EV1.hdr.hist.srow_z;...
+         0 0 0 1];
     sgn = sign(diag(T(1:3,1:3)));
     voxelsize = EV1.hdr.dime.pixdim(2:4);
     % Get FA map
@@ -169,6 +170,7 @@ elseif strcmp(type,'fsl')
 end
 clear EV1
 imdim = size(V);
+
 
 %% Load region of termination
 if ~isempty(TER)
@@ -212,7 +214,7 @@ fprintf('Performing fibre tractography with %d seeds...',nSeeds)
 for start_dir   = [-1 1] % bi-directional tracking
 
     % Start tracking form the seed
-    tracts = NaN(3,nSeeds,maxSteps+1); % uni-directional array with tract points
+    tracts = NaN(3,nSeeds,maxSteps+1); % uni-directional array with tract points in voxel coordinates
     stepnr = 0;
     seed_incl = 1 : nSeeds; % vector with indices of seeds that are still included in fibre tracking.
     tracts(:,:,1) = seeds_vox;
@@ -228,7 +230,8 @@ for start_dir   = [-1 1] % bi-directional tracking
         end
 
         % Rotate direction vectors to the correct coordinate system using the
-        % transform information from the NIfTI header
+        % transform information from the NIfTI header. (This still needs
+        % checking for other images.)
         d = d .*  (sgn([2 1 3])*ones(1,length(seed_incl)));
         
         if stepnr == 1
@@ -261,6 +264,11 @@ for start_dir   = [-1 1] % bi-directional tracking
         % ============== FA ==================
         % Check if next step is outside FA threshold. If so, this will be
         % the last step for the tract.
+        
+        % Note that this step also checks whether the next step is outside
+        % the image domain. If outside, a NaN will be returned for the FA
+        % value causing the tract to be terminated.
+        
         fa_value = interp3(FA,...
             next_step(2,:)+1,...
             next_step(1,:)+1,...
@@ -278,20 +286,8 @@ for start_dir   = [-1 1] % bi-directional tracking
                         tracts(3,seed_incl,stepnr)+1,'nearest') == 0;
          else
              crit3 = true(size(crit1));
-                 
          end
-         
-         % ============= outside image domain =====================
-         % Check if the next step is outside the image. If so, terminate tracking
-         
-         crit3 = interp3(TER.img,...
-                    tracts(2,seed_incl,stepnr)+1,...
-                    tracts(1,seed_incl,stepnr)+1,...
-                    tracts(3,seed_incl,stepnr)+1,'nearest') == 0;
-     
-         crit3 = true(size(crit1));
                  
-         
                  %% Exclude fibres from next step based on stopping criteria
          excluded = ~crit1 | ~crit2 | ~crit3;
          

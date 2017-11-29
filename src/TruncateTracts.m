@@ -84,6 +84,7 @@ if ~isfield(SurfModel,'faces')
 end
 
 %% Fibre truncation
+tic
 nFib = size(DTItracts.fibindex,1);
 fibindex_trunc = NaN(nFib,2);
 length_trunc   = NaN(nFib,1);
@@ -107,7 +108,6 @@ else
     OUTSIDE_apo = ~inpolyhedron(aponeurosis,DTItracts.tracts_xyz');
 end
 waitbar(0,hwait,sprintf('Truncating %d fibres',nFib))
-tic
 for fibnr =  1:nFib
     if any(round(linspace(1,nFib,11))==fibnr)
         waitbar(fibnr/nFib,hwait)
@@ -123,11 +123,7 @@ for fibnr =  1:nFib
     
     % Check which points of this fibre are inside the muscle and
     % outside the aponeurosis
-       
-    in_muscle = INSIDE_muscle(p);
-    out_apo   = OUTSIDE_apo(p);
-    
-    dsig = diff([1 ~(in_muscle & out_apo)' 1]);
+    dsig = diff([1 ~(INSIDE_muscle(p) & OUTSIDE_apo(p))' 1]);
     startIndex = find(dsig < 0);
     endIndex   = find(dsig > 0)-1;
     len = endIndex - startIndex+1;
@@ -163,7 +159,7 @@ for fibnr =  1:nFib
         
     end
 end
-toc
+
 % Return as separate output arguments if 2 outputs are requested or add to
 % structure 'DTItracts' when one output is requested.
 if nargout == 1

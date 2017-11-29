@@ -1,7 +1,11 @@
-function IN = inside_surface(FV,pts)
+function IN = inside_surface(FV,pts,opt)
 %%INSIDE_SURFACE calculates whether the points given in pts (n x 3 matrix
 %%of x y z coordinates) are inside (1) or outside (0) the triangulated
 %%surface given by FV (containing fields faces and vertices).
+%
+% Optionally, the edge vectors and dot products of the edge vectors can be
+% provided as an additional input structure 'opt'. This speeds up
+% calculation when inside_surface is used in a loop.
 %
 % Bart Bolsterlee, Neuroscience Research Australia (NeuRA)
 % February 2017
@@ -16,26 +20,25 @@ function IN = inside_surface(FV,pts)
 % Dan Sunday available on:
 % http://geomalgorithms.com/a06-_intersect-2.html#intersect3D_RayTriangle()
 
-VERT = FV.vertices;
-FAC  = FV.faces;
+if nargin < 3
+    % Get all vertices locations
+    opt.V0 = FV.vertices(FV.faces(:,1),:);
+    opt.V1 = FV.vertices(FV.faces(:,2),:);
+    opt.V2 = FV.vertices(FV.faces(:,3),:);
 
-% Get all vertices locations
-V0 = VERT(FAC(:,1),:);
-V1 = VERT(FAC(:,2),:);
-V2 = VERT(FAC(:,3),:);
+    % Calculate edge vectors
+    opt.U = opt.V1 - opt.V0; 
+    opt.V = opt.V2 - opt.V0;
 
-% Calculate edge vectors
-U = V1 - V0; 
-V = V2 - V0;
+    % Calculate dot product of edge vector
+    opt.UU = sum(opt.U.*opt.U,2);
+    opt.UV = sum(opt.U.*opt.V,2);
+    opt.VV = sum(opt.V.*opt.V,2);
+    opt.DD = opt.UV.*opt.UV - opt.UU.*opt.VV;
 
-% Calculate dot product of edge vector
-UU = sum(U.*U,2);
-UV = sum(U.*V,2);
-VV = sum(V.*V,2);
-DD = UV.*UV - UU.*VV;
-
-% Calculate normal of faces
-N = cross(U,V);
+    % Calculate normal of faces
+    opt.N = cross(opt.U,opt.V);
+end
 
 nP = size(pts,1);
 NINT = zeros(nP,1); % Number of intersections
@@ -49,14 +52,14 @@ for i = 1 : size(pts,1)
     % computation much faster.
     
     d  = [1 0 0]; % ray direction vector in positive x-direction
-    excl = (V0(:,2) < pts(i,2) & V1(:,2) < pts(i,2) & V2(:,2) < pts(i,2)) | ... % all vertices below y = yp (i.e. triangle is completely below plane y = yp)
-           (V0(:,2) > pts(i,2) & V1(:,2) > pts(i,2) & V2(:,2) > pts(i,2)) | ... % all vertices above y = yp
-           (V0(:,3) < pts(i,3) & V1(:,3) < pts(i,3) & V2(:,3) < pts(i,3)) | ... % all vertices below z = zp
-           (V0(:,3) > pts(i,3) & V1(:,3) > pts(i,3) & V2(:,3) > pts(i,3));      % all vertices above z = zp
+    excl = (opt.V0(:,2) < pts(i,2) & opt.V1(:,2) < pts(i,2) & opt.V2(:,2) < pts(i,2)) | ... % all vertices below y = yp (i.e. triangle is completely below plane y = yp)
+           (opt.V0(:,2) > pts(i,2) & opt.V1(:,2) > pts(i,2) & opt.V2(:,2) > pts(i,2)) | ... % all vertices above y = yp
+           (opt.V0(:,3) < pts(i,3) & opt.V1(:,3) < pts(i,3) & opt.V2(:,3) < pts(i,3)) | ... % all vertices below z = zp
+           (opt.V0(:,3) > pts(i,3) & opt.V1(:,3) > pts(i,3) & opt.V2(:,3) > pts(i,3));      % all vertices above z = zp
     %
-    %     figure;hold on axis equal patch('vertices',VERT,'faces',FAC,...
+    %     figure;hold on axis equal patch('vertices',FV.vertices,'faces',FV.faces,...
     %         'FaceAlpha',0.2,'FaceColor','g')
-    %     patch('vertices',VERT,'faces',FAC(~excl,:),...
+    %     patch('vertices',FV.vertices,'faces',FV.faces(~excl,:),...
     %         'FaceAlpha',1,'FaceColor','r')
     %     %     plot3( pts(i,1), pts(i,2), pts(i,3),'ro',... %
     %     'MarkerFaceColor','r','MarkerEdgeColor','none',... %
@@ -71,9 +74,9 @@ for i = 1 : size(pts,1)
     % http://geomalgorithms.com/a06-_intersect-2.html#intersect3D_RayTriangle()
     nF = sum(~excl);
     
-    W0 = ones(nF,1) * point - V0(~excl,:);
-    A = -sum(N(~excl,:) .* W0,2);
-    B =  sum(N(~excl,:) .* (ones(nF,1) * d),2);
+    W0 = ones(nF,1) * point - opt.V0(~excl,:);
+    A = -sum(opt.N(~excl,:) .* W0,2);
+    B =  sum(opt.N(~excl,:) .* (ones(nF,1) * d),2);
     
     % if R < 0 the ray points away from the triangle and no intersection
     % will be found.
@@ -82,11 +85,11 @@ for i = 1 : size(pts,1)
     % calculate intersection of ray and plane
     II = ones(nF,1) * point + (R*ones(1,3)) .* (ones(nF,1) * d);
     
-    W = II - V0(~excl,:);
-    WV = sum(W.*V(~excl,:),2);
-    WU = sum(W.*U(~excl,:),2);
-    S = (UV(~excl,:) .* WV - VV(~excl,:) .* WU) ./ DD(~excl,:);
-    T = (UV(~excl,:) .* WU - UU(~excl,:) .* WV) ./ DD(~excl,:);
+    W = II - opt.V0(~excl,:);
+    WV = sum(W.*opt.V(~excl,:),2);
+    WU = sum(W.*opt.U(~excl,:),2);
+    S = (opt.UV(~excl,:) .* WV - opt.VV(~excl,:) .* WU) ./ opt.DD(~excl,:);
+    T = (opt.UV(~excl,:) .* WU - opt.UU(~excl,:) .* WV) ./ opt.DD(~excl,:);
     
     % Count how many times the surface was intersected
     NINT(i) = sum((S >= 0 & S <= 1 & T >= 0 & (S+T) <= 1) & R >= 0);
