@@ -4,7 +4,11 @@ function [ v ] = interp3vec(V, coords )
 % 'coords' (3 x n matrix with voxel coordinates). The interpolation is done
 % such that the direction of the vector does not matter, because it doesn't
 % matter which direction the primary eigenvector points towards. The output
-% is the normalised direction at the locations provided in 'coords'.
+% is the normalised direction at the locations provided in 'coords'. If a
+% third input argument is provided, this should be the maximum angular difference
+% in fibre orientation for which neighbouring voxels are included in the
+% interpolation (i.e. neighbouring voxels with fibre orientations more
+% different than max_angle are excluded).
 %
 % Bart Bolsterlee, Neuroscience Research Australia
 % November 2017
@@ -41,13 +45,13 @@ for i = 1 : nP
     % sign of the inner product between the direction vector in the
     % voxel nearest to the current point and the direction vectors
     % of all neighbouring voxels. Flip if sign is negative.
-    sgn = sign(repmat(V(vox_idx(2,1),vox_idx(1,1),vox_idx(3,1),1),2,2,2) .*...
+    tmp = repmat(V(vox_idx(2,1),vox_idx(1,1),vox_idx(3,1),1),2,2,2) .*...
                       V(vox_idx(2,:),vox_idx(1,:),vox_idx(3,:),1) +...
                repmat(V(vox_idx(2,1),vox_idx(1,1),vox_idx(3,1),2),2,2,2) .*...
                       V(vox_idx(2,:),vox_idx(1,:),vox_idx(3,:),2) +...
                repmat(V(vox_idx(2,1),vox_idx(1,1),vox_idx(3,1),3),2,2,2) .*...
-                      V(vox_idx(2,:),vox_idx(1,:),vox_idx(3,:),3) );
-
+                      V(vox_idx(2,:),vox_idx(1,:),vox_idx(3,:),3) ;
+    sgn = sign(tmp);
     % If adjacent vectors are the same, the projection and the sign
     % are zero. In that case, keep the original direction by
     % setting 'sgn' to 1.
@@ -76,11 +80,11 @@ for i = 1 : nP
     W(2,1,2) = (1-r(2)) *    r(1)  *    r(3);
     W(2,2,2) =    r(2)  *    r(1)  *    r(3);
     
-    % Interpolate
+    % Interpolate using only those neighbours with fibre orientations less
+    % different than max_angle
     v(1,i) = sum((X(:) .* W(:))) / sum(W(:));
     v(2,i) = sum((Y(:) .* W(:))) / sum(W(:));
     v(3,i) = sum((Z(:) .* W(:))) / sum(W(:));
-    
     
 %     A(i) = all(sgn(:)>0);
 end

@@ -78,7 +78,7 @@ B(B<0) = -B(B<0);
 
 scaling = 1;
 eigvec_map(:,:,:,1) = R * scaling;
-eigvec_map(:,:,:,2) = G * scaling;
+eigvec_map(:,:,:,2) = -G * scaling; % negative to correct for DSI studio's coordinate system
 eigvec_map(:,:,:,3) = B * scaling;
 
 % Use all information from the DTI nifti file but overwrite the image data

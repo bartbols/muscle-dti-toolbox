@@ -1,4 +1,4 @@
-function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings )
+function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings,varargin )
 %%TRACKFIBERS calls DSI studio to track fibres with the settings given by
 %the structure array TrackSettings.
 %
@@ -41,6 +41,19 @@ function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings )
 %                    is terminated: no tracts will be saved and the 
 %                    StopFlag is set to 0. Default 10 sec.
 %
+% Optional inputs, provided as parameter_name,<value> pairs.
+%    - seed_file    : filename of seed locations in DSI Studio format. See
+%                     MakeSeeds.m for further details.
+%    - seed_spacing : if provided, non-random seeding will be applied
+%                     within the seed region. A grid with spacing in mm
+%                     indicated by the value will be created within the
+%                     seed region. For example, adding 'seed_spacing', 2
+%                     will generate a regular seed grid with spacing 2mm
+%                     within the specified seed region.
+%                     E.g. 'seed_spacing',2 will generate a regular grid
+%                     of seed points with 2 mm spacing within the seed
+%                     region.
+%
 %    For fields that are not present, default values are used. See default
 %    values below.
 %
@@ -63,6 +76,7 @@ function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings )
 % http://dsi-studio.labsolver.org/Manual
 %
 % -------------------------------------------------------------------------
+
 % Version 1.0
 % Author: Bart Bolsterlee, Neuroscience Research Australia
 % Date: June 25th, 2015
@@ -84,17 +98,26 @@ function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings )
 % reading in the header information from the DTI file. In addition to the
 % fibre-file, the DTI file should now also be provided (as the field 'DTI'
 % in the structure 'filename')
+% BB 12/12/2017: Added non-random seeding. If an optional extra input
+% argument 'seed_spacing' is provided, a regular seed grid with the spacing
+% specified by 'seed_spacing' will be generated. Fibre tracking is then
+% performed starting from these seed points.
 % 
 % -------------------------------------------------------------------------
 
-%    - OutputDir  : the path where the tracts are stored to
-%    - OutputName : filename of the tract data
 % Check the inputs
-if nargin ~= 2
-    error('myApp:argChk', 'Wrong number of input arguments')
+p = inputParser;
+addRequired(p,'filename',@(x) validateattributes(x,{'struct'},{'nonempty'}))
+addRequired(p,'TrackSettings',@(x) validateattributes(x,{'struct'},{'nonempty'}))
+addParameter(p,'seed_spacing',[],@isscalar)
+addParameter(p,'seed_file',[])
+parse(p,filename,TrackSettings,varargin{:})
+seed_spacing = p.Results.seed_spacing;
+seed_file    = p.Results.seed_file;
+
+if ~isempty(seed_spacing) && ~isempty(seed_file)
+    error('seed_spacing and seed_file cannot both be defined. Remove one of the inputs.')
 end
-validateattributes(TrackSettings,{'struct'},{'nonempty'})
-validateattributes(filename,{'struct'},{'nonempty'})
 
 % Set some default track settings which are used when they are not defined
 % in TrackSettings
@@ -151,7 +174,7 @@ if isfield(filename,'Tracts')
     fprintf('%-20s: %s\n','Output',filename.Tracts)
     CommandTxt = horzcat(CommandTxt,[' --output=' filename.Tracts]);
 else
-    error('Tract filename not defined. Tracking cannot be started.\n')
+    error('Tract filename not defined. Tracking cannot be started.')
 end
 
 if exist(filename.Tracts,'file')
@@ -160,17 +183,54 @@ if exist(filename.Tracts,'file')
 end
 
 % Add the seed filename to the command, if it exists.
-if isfield(filename,'Seed')
-    fprintf('%-20s: %s\n', 'Seed',filename.Seed)
-    if exist(filename.Seed,'file') ~= 2
-        error('prog:input',...
-            'Seed file ''%s'' does not exist. Tracking cannot be started.',...
-            filename.Seed)
+if isfield(filename,'Seed') || ~isempty(seed_file)
+    
+    if isfield(filename,'Seed')
+        % Check if seed region file exists
+        if exist(filename.Seed,'file') ~= 2
+            error('prog:input',...
+                'Seed region file ''%s'' does not exist. Tracking cannot be started.',...
+                filename.Seed)
+        else            
+            fprintf('%-20s: %s\n', 'Seed region',filename.Seed)
+        end
+    end
+    if ~isempty(seed_file)
+        if exist(seed_file,'file') ~= 2
+            error('prog:input',...
+                'Seed file ''%s'' does not exist. Tracking cannot be started.',...
+                seed_file)
+        else
+            if isfield(filename,'Seed')
+                warning('Seed file %s is used for seeding, not region %s',seed_file,filename.Seed)
+            end
+            fprintf('%-20s: %s\n', 'Seed voxels',seed_file)
+        end
+    end
+    if ~isempty(seed_spacing)
+        % Non-random seeding is selected. Generate seed locations
+        % as a regular grid with spacing 'seed_spacing' (in mm) within
+        % the seed region. Save the seeds with the tracts data
+        filename.SeedLocations = strrep(filename.Tracts,'.mat','_seeds.txt');            
+        seeds  =MakeSeeds(filename.Seed,filename.DTI,seed_spacing,...
+            'seed_file',filename.SeedLocations);
+        nSeeds = size(seeds,2);
+        CommandTxt = horzcat(CommandTxt,[' --seed='    filename.SeedLocations ' --seed_plan=1']);
+
+        % Remove limit on number of fibres from the track settings.
+        if isfield(TrackSettings,'FiberCount');TrackSettings = rmfield(TrackSettings,'FiberCount');end
+    elseif ~isempty(seed_file)
+        % A file with seed locations is provided.            
+        CommandTxt = horzcat(CommandTxt,[' --seed='    seed_file ' --seed_plan=1']);
+
+        % Remove limit on number of fibres from the track settings.
+        if isfield(TrackSettings,'FiberCount');TrackSettings = rmfield(TrackSettings,'FiberCount');end
     else
-        CommandTxt = horzcat(CommandTxt,[' --seed='    filename.Seed]);
+        % Random seeding within the seed region
+        CommandTxt = horzcat(CommandTxt,[' --seed='    filename.Seed ' --seed_plan=0']);
     end
 else
-    error('Seed filename not defined. Tracking cannot be started.\n')
+    error('Seed region or seed filename not defined. Tracking cannot be started.')
 end
 
 % Add the ROI1 filename to the command, if it exists.

@@ -40,6 +40,10 @@ function reg_elastix( fixed, moving, parfile,varargin )
 %                          transformation (will be created)
 % - result_image         : filename of the transformed image (moving to
 %                          fixed)
+% - deformation          : filename of the deformation field (will be 
+%                          created using transformix)
+% - jacobian             : filename of the jacobian of the deformation
+%                          field (will be created using transformix)
 % - dilate_mask          : number of voxels to grow the mask by prior to
 %                          registration.
 % - transform_inv        : filename of the inverse transformation file
@@ -58,6 +62,8 @@ addParameter(p,'stack_m',[],@(x) assert(isnumeric(x)))
 addParameter(p,'surface_in',[],@(x) contains(x,'.stl'))
 addParameter(p,'surface_out',[],@(x) contains(x,'.stl'))
 addParameter(p,'result_image',[],@(x) contains(x,'.nii'))
+addParameter(p,'jacobian',[],@(x) contains(x,'.nii'))
+addParameter(p,'deformation',[],@(x) contains(x,'.nii'))
 addParameter(p,'dilate_mask',[],@(x) isscalar(x))
 addParameter(p,'transform_inv',[],@(x) ischar(x))
 addParameter(p,'initial',[],@(x) ischar(x))
@@ -74,6 +80,8 @@ transform_file = p.Results.transform_file;
 dilate_mask    = p.Results.dilate_mask;
 transform_inv  = p.Results.transform_inv;
 initial        = p.Results.initial;
+deformation    = p.Results.deformation;
+jacobian       = p.Results.jacobian;
 
 % Create temporary working directory.
 char_list = char(['a':'z' '0':'9']) ;
@@ -87,6 +95,7 @@ try
 
     if ~isempty(stack_f)
         % Get the selected stack(s) from the 4D fixed image
+        fixed_3D = cell(1,length(stack_f));
         for i = 1 : length(stack_f)
             fprintf('In reg_elastix: Extracting stack %d from 4D fixed image... ',stack_f(i))
             fixed_3D{i} = fullfile(tmpdir,sprintf('fixed_image%02d.nii.gz',i));
@@ -98,6 +107,7 @@ try
     end
     if ~isempty(stack_m)
         % Get the selected stack(s) from the 4D moving image
+        moving_3D = cell(1,length(stack_f));
         for i = 1:length(stack_m)
             fprintf('In reg_elastix: Extracting stack %d from 4D moving image... ',stack_m(i))
             moving_3D{i} = fullfile(tmpdir,sprintf('moving_image%02d.nii.gz',i));
@@ -193,26 +203,53 @@ try
     end
     transform_file_final = fullfile(tmpdir,sprintf('step%02d',nSteps),'TransformParameters.0.txt');
     
+    if ~isempty(transform_file)
+        % Copy the final transform file.
+        copyfile(transform_file_final,transform_file);
+        
+        % If registration was done in multiple steps, the  transformation 
+        % of the last step file will refer to the transformation file from
+        % previous steps. Also copy those files and update the initial
+        % transforms in the final transformation file.
+        
+        if nSteps > 1
+            [a,b,c] = fileparts(transform_file);
+            set_ix(transform_file,'InitialTransformParametersFileName',...
+                        fullfile(a,sprintf('%s_step%02d%s',b,nSteps-1,c)));
+            for stepnr = 1 : nSteps-1
+                fname = fullfile(tmpdir,sprintf('step%02d',stepnr),'TransformParameters.0.txt');
+                new_fname = fullfile(a,sprintf('%s_step%02d%s',b,stepnr,c));
+                copyfile(fname,new_fname);
+                if stepnr == 1
+                    set_ix(new_fname,'InitialTransformParametersFileName','NoInitialTransform');
+                else
+                    set_ix(new_fname,'InitialTransformParametersFileName',...
+                        fullfile(a,sprintf('%s_step%02d%s',b,stepnr-1,c)));
+                end
+                     
+            end
+        end
+    end
+    
     if ~isempty(transform_inv)
         % Also calculate the inverse transformation
         % This procedure is described in the Elastix v4.8 manual section 6.1.6
-%         tf_inv = invert_transformation(transform_file,moving_3D{1},parfile{stepnr});
         
         par_file_inv = fullfile(tmpdir,'parfile_for_inv.txt');
                 
-        copyfile(parfile{stepnr},par_file_inv)
+        copyfile(parfile{nSteps},par_file_inv)
         
         set_ix(par_file_inv,'Metric','DisplacementMagnitudePenalty')
         set_ix(par_file_inv,'HowToCombineTransforms','Compose')
-        
+        mkdir(fullfile(tmpdir,'inv'))
         elastix_cmd = sprintf('elastix -f %s -m %s -t0 %s -p %s -out %s',...
             fixed_3D{1},fixed_3D{1},...
             transform_file_final,...
-            par_file_inv,tmpdir);
+            par_file_inv,fullfile(tmpdir,'inv'));
         system(elastix_cmd);
-        set_ix(fullfile(tmpdir,'TransformParameters.0.txt'),'InitialTransformParametersFileName','NoInitialTransform')
+        set_ix(fullfile(tmpdir,'inv','TransformParameters.0.txt'),'InitialTransformParametersFileName','NoInitialTransform')
         
-        copyfile(fullfile(tmpdir,'TransformParameters.0.txt'),transform_inv)
+        copyfile(fullfile(tmpdir,'inv','TransformParameters.0.txt'),transform_inv)
 
     end
     
@@ -240,18 +277,35 @@ try
         else
             % Result image was not written. Create with elastix
             transformix_cmd = sprintf('transformix -in %s -out %s -tp %s',...
-                moving_3D{1},tmpdir,transform_file_final);
+                moving_3D{1},tmpdir,transform_file);
             system(transformix_cmd)
             movefile(fullfile(tmpdir,'result.nii.gz'),result_image)
         end
             
     end
-    if ~isempty(transform_file)
-        % Copy the final transform file.
-        movefile(fullfile(tmpdir,sprintf('step%02d',nSteps),...
-            'TransformParameters.0.txt'),transform_file);
+
+    if ~isempty(deformation)
+        fprintf('Calculating deformation field...')
+        
+        % Create deformation field with transformix.
+        transformix_cmd = sprintf('transformix -def all -out %s -tp %s',...
+            tmpdir,transform_file);
+        system(transformix_cmd);
+        movefile(fullfile(tmpdir,'deformationField.nii.gz'),deformation)
+        fprintf(' completed. Saved as: %s\n',deformation)
     end
     
+    if ~isempty(jacobian)
+        fprintf('Calculating spatial jacobian...')
+        
+        % Create spatial jacobian with transformix.
+        transformix_cmd = sprintf('transformix -jacmat all -out %s -tp %s',...
+            tmpdir,transform_file);
+        system(transformix_cmd);
+        
+        movefile(fullfile(tmpdir,'fullSpatialJacobian.nii.gz'),jacobian)
+        fprintf(' completed. Saved as: %s\n',jacobian)
+    end
     % Delete the temporary working directory.
     rmdir(tmpdir,'s')
     

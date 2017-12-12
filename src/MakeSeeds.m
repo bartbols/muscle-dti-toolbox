@@ -1,4 +1,4 @@
-function seeds = MakeSeeds( mask,img,spacing_mm )
+function seeds = MakeSeeds( mask,img,spacing_mm,varargin )
 %MAKESEEDS Creates seeds within a mask with regular spacing and returns the
 %seed location in global coordinates. These seed locations can be used in
 %dti_tractography
@@ -18,6 +18,20 @@ function seeds = MakeSeeds( mask,img,spacing_mm )
 %        of 'img' and 'mask' should be the same, i.e. the mask was created
 %        on this image.
 % spacing_mm : spacing of the regular grid of seed points in mm
+%
+% Optional inpus, provided as 'parameter_name',<value> pairs:
+% seed_file : name of text file in DSI Studio format with seed locations.
+%             This file can be provided as an input to DSI Studio for non-random
+%             seed placement.
+
+% Read the inputs
+p = inputParser;
+addRequired(p,'mask')
+addRequired(p,'img')
+addRequired(p,'spacing_mm',@isscalar)
+addParameter(p,'seed_file',[])
+parse(p,mask,img,spacing_mm,varargin{:})
+seed_file = p.Results.seed_file;
 
 % Load the mask
 if ~isstruct(mask)
@@ -63,5 +77,24 @@ in_mask = interp3(mask.img,...
     'nearest')~=0;
 seeds = seeds_glob(:,in_mask);
 
+% Write seed locations (in voxel coordinates) to DSI-studio readable text 
+% file. See here for the documentation of file format:
+% http://dsi-studio.labsolver.org/Manual/Fiber-Tracking#TOC-Seed
+if ~isempty(seed_file)
+    seeds_vox = seeds_vox(:,in_mask);
+    
+    % Flip the 2nd dimensions (because DSI studio works in a different
+    % coordinate system)
+    seeds_vox(2,:) = (img.hdr.dime.dim(3)-1)-seeds_vox(2,:);
+    nSeeds = size(seeds_vox,2);
+    fid = fopen(seed_file,'w');
+    for i = 1 : nSeeds
+        % Note that voxel locations are provided as integers where the last
+        % two numbers are decimal places (hence the *100).
+        fprintf(fid,'%d %d %d\n',round(seeds_vox(1:3,i)*100));
+    end
+    fprintf(fid,'%d %d %d\n',100, -1, -1 );
+    fclose(fid);
+    fprintf('%d seeds written to %s\n',nSeeds,seed_file)
 end
 

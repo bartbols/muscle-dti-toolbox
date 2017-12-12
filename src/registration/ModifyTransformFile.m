@@ -4,8 +4,14 @@ function ModifyTransformFile( ParFileName, img_filename,ParFileNameCorrected )
 % image file (second input) and saves the modified transformation file with
 % a new name (third input)
 
-% Load the image
-img = load_untouch_nii(img_filename);
+
+if ~isstruct(img_filename)
+    % Load the image.
+    img = load_untouch_nii(img_filename);
+else
+    % NIfTI structure is provided.
+    img = img_filename;
+end
 
 % Read the file into cell A and make the change 
 fid = fopen(ParFileName);
