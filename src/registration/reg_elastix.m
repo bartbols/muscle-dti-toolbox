@@ -23,10 +23,18 @@ function reg_elastix( fixed, moving, parfile,varargin )
 %
 % - transform_file       : filename of the final transformation (as created
 %                          by Elastix)
-% - mask                 : filename of the binary mask file used for registration.
+% - mask                 : filename of the binary mask file used as the fixed
+%                          mask for registration.
 %                          Registration will be optimised for the region in
 %                          the mask only; regions outside the mask may have
 %                          poor alignment.
+% - mask_m               : filename of the binary mask file used as the moving
+%                          mask for registration.
+%                          Registration will be optimised for the region in
+%                          the mask only; regions outside the mask may have
+%                          poor alignment.
+% - label_number         : label number in the mask used for segmentation
+%                          (only required if mask contains multiple labels)
 % - foreground_threshold : threshold intensity for foreground. A mask will 
 %                          be created from the fixed image using all voxels
 %                          with a value above this threshold.
@@ -56,7 +64,9 @@ addRequired(p,'moving',@(x) contains(x,'.nii'))
 addRequired(p,'parfile',@(x) ischar(x) || iscell(x))
 addParameter(p,'transform_file',[],@(x) ischar(x))
 addParameter(p,'mask',[],@(x) isempty(x) || contains(x,'.nii') || isnumeric(x) || iscell(x))
+addParameter(p,'mask_m',[],@(x) isempty(x) || contains(x,'.nii') || isnumeric(x) || iscell(x))
 addParameter(p,'foreground_threshold',[],@(x) isscalar(x) || isempty(x))
+addParameter(p,'label_number',[],@(x) assert(isnumeric(x)))
 addParameter(p,'stack_f',[],@(x) assert(isnumeric(x)))
 addParameter(p,'stack_m',[],@(x) assert(isnumeric(x)))
 addParameter(p,'surface_in',[],@(x) contains(x,'.stl'))
@@ -70,6 +80,8 @@ addParameter(p,'initial',[],@(x) ischar(x))
 parse(p,fixed, moving, parfile,varargin{:});
 
 mask           = p.Results.mask;
+mask_m         = p.Results.mask_m;
+label_number   = p.Results.label_number;
 foreground_threshold = p.Results.foreground_threshold;
 stack_f        = p.Results.stack_f;
 stack_m        = p.Results.stack_m;
@@ -131,11 +143,20 @@ try
         fprintf('completed.\n')        
     end
     
-    if ~isempty(mask) && ~isempty(dilate_mask)
+    if ~isempty(mask)
+        % Load the mask
         M = load_untouch_nii(mask);
-        M.img = cast(imdilate(M.img,ones(dilate_mask*2+1,dilate_mask*2+1)),'like',M.img);
+        if ~isempty(label_number)
+            % Extract the selected label from the mask
+            M.img = cast(M.img == label_number,'like',M.img);
+        end
         
-        % Save the dilated mask in the temporary working folder.
+        if ~isempty(dilate_mask)        
+            % Dilate (grow) the mask by a number of voxels
+            M.img = cast(imdilate(M.img,ones(dilate_mask*2+1,dilate_mask*2+1)),'like',M.img);
+        end
+        
+        % Save the mask in the temporary working folder.
         mask = fullfile(tmpdir,'mask.nii.gz');
         save_untouch_nii(M,mask)
 
@@ -181,6 +202,11 @@ try
         if ~isempty(mask)
             % Add fixed mask, if provided.
             elastix_cmd = [elastix_cmd sprintf(' -fMask %s',mask)];
+            
+        end
+        if ~isempty(mask_m)
+            % Add moving mask, if provided.
+            elastix_cmd = [elastix_cmd sprintf(' -mMask %s',mask_m)];
             
         end
         if stepnr ~= 1
