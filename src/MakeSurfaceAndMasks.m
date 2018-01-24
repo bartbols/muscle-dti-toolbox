@@ -248,7 +248,13 @@ try
                  mask_iso.hdr.hist.srow_y;...
                  mask_iso.hdr.hist.srow_z;...
                  0 0 0 1];
-            
+            if all(all(T(1:3,1:3)==0)) 
+                % The srow information is missing from the header.
+                % Calculate the spatial transformation matrix from the
+                % quaternion parameters.
+                T = makeT_from_quat( mask_iso );
+            end
+ 
             tf = T * [FV.vertices ones(size(FV.vertices,1),1)]';
             FV.vertices = tf(1:3,:)';
             

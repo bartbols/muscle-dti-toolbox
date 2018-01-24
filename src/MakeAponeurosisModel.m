@@ -1,4 +1,4 @@
-function varargout = MakeAponeurosisModel( mask,anat,model_name )
+function varargout = MakeAponeurosisModel( mask,anat,model_name,varargin )
 %MAKEAPONEUROSISMODEL This function makes a surface model of the
 %aponeurosis.
 %
@@ -8,6 +8,7 @@ function varargout = MakeAponeurosisModel( mask,anat,model_name )
 %
 % ----------------- USAGE -----------------
 % model = MakeAponeurosisModel( mask,anat,model_name );
+% model = MakeAponeurosisModel( mask,anat,model_name,'label_number',1);
 % 
 % ----------------- INPUT -----------------
 % - mask    :  NIfTI structure containing the mask of the aponeurosis as
@@ -19,6 +20,10 @@ function varargout = MakeAponeurosisModel( mask,anat,model_name )
 % - model_name : filename (with extension .stl) to which the STL-model will
 %                be saved
 %
+% Optional input, provided as 'parameter',<value> pairs:
+% - label_number : number of the label in the mask from which the
+%    aponeurosis will be created. If not provided all non-zero voxels are
+%    used.
 %         
 % ----------------- OUTPUT -----------------
 % - model: structure with the vertices and faces of the model
@@ -29,7 +34,9 @@ p = inputParser;
 addRequired(p,'mask')
 addRequired(p,'anat')
 addRequired(p,'model_name',@(x) endsWith(x,'.stl','IgnoreCase',true))
-parse(p, mask,anat,model_name)
+addParameter(p,'label_number',[],@(x) isscalar(x))
+parse(p, mask,anat,model_name,varargin{:})
+label_number = p.Results.label_number;
 
 %% Check if structure or filename is provided
 if ~isstruct(mask)
@@ -40,7 +47,11 @@ if ~isstruct(anat)
 end
 
 % Calculate point cloud with all voxel locations
-[I,J,K] = ind2sub(mask.hdr.dime.dim(2:4),find(mask.img~=0));
+if isempty(label_number)
+    [I,J,K] = ind2sub(mask.hdr.dime.dim(2:4),find(mask.img~=0));
+else
+    [I,J,K] = ind2sub(mask.hdr.dime.dim(2:4),find(mask.img==label_number));
+end
 
 % Transform to global coordinates using the transformation in the header of
 % the anatomical image. This information is not always stored correctly in
@@ -53,7 +64,7 @@ model.vertices = coords(:,1:3);
 
 % Use MATLAB's built-in 'boundary' function to create a closed surface
 % around the point cloud.
-model.faces = boundary(model.vertices);
+model.faces = boundary(model.vertices,1);
 
 % Calculate normal vectors per face
 model.normals = facenormals(model);
