@@ -59,6 +59,13 @@ end
 % the anatomical image is used.
 
 T = [anat.hdr.hist.srow_x;anat.hdr.hist.srow_y;anat.hdr.hist.srow_z;0 0 0 1];
+if all(all(T(1:3,1:3)==0)) 
+    % The srow information is missing from the header.
+    % Calculate the spatial transformation matrix from the
+    % quaternion parameters.
+    T = makeT_from_quat( anat );
+end
+
 coords = [I-1 J-1 K-1 ones(size(I))] * T';
 model.vertices = coords(:,1:3);
 
