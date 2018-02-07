@@ -47,6 +47,8 @@ function filename = MakeSurfaceAndMasks(segm_filename, DTI_filename, varargin )
 %   full mask to generate the seed mask. Default = 2
 % - MakeMasks  : if true, the tractography masks are created. Default = true
 % - MakeSurface: if true, surfaces (.stl) are created. Default = true.
+% - FillHoles  : if true, all holes in the binary mask will be filled prior
+%                to surface reconstruction. Default = true.
 %
 %  MakeMasks and MakeSurface can be set to false if only surfaces or
 %  only masks are required. If both set to false, the function does nothing.
@@ -84,10 +86,12 @@ addParameter(p,'ResultsPath',fileparts(segm_filename),@ischar)
 addParameter(p,'NumberOfVoxelsToRemove',2,@(x)(isnumeric(x) && mod(x,1)==0 && x>0))
 addParameter(p,'MakeSurface',true,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'MakeMasks',true,@(x) x==0 || x==1 || islogical(x) )
+addParameter(p,'FillHoles',true,@(x) x==0 || x==1 || islogical(x) )
 parse(p,segm_filename,DTI_filename,varargin{:});
 
 MakeSurface = p.Results.MakeSurface; % if true, surfaces are made
 MakeMasks   = p.Results.MakeMasks; % if true, masks are made
+FillHoles   = p.Results.FillHoles;
 
 %% Create results folder if it doesnt' exist
 if exist(p.Results.ResultsPath,'dir') ~= 7
@@ -228,8 +232,13 @@ try
             
             binary_mask = mask_iso.img;
             
-            [FV.vertices,FV.faces]=v2s(binary_mask,0.5,opt,method);
+            if FillHoles == true
+                for slice_nr = 1 : size(binary_mask,3)
+                    binary_mask(:,:,slice_nr) = imfill(binary_mask(:,:,slice_nr),'holes');
+                end
+            end
             
+            [FV.vertices,FV.faces]=v2s(binary_mask,0.5,opt,method);
             [FV.vertices,FV.faces]   = surfreorient(FV.vertices,FV.faces);
             
             % Apply some smoothing
