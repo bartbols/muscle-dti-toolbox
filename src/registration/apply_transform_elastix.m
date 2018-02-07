@@ -71,6 +71,10 @@ try
         transformix_cmd = sprintf('transformix -in %s -out %s -tp %s',...
             filename_in,tmpdir,tf_file);
         system(transformix_cmd)
+        % Create output directory, if it doesn't exist already.
+        if exist(fileparts(filename_out),'dir') ~= 7
+            mkdir(fileparts(filename_out))
+        end          
         movefile(fullfile(tmpdir,'result.nii.gz'),filename_out)
         fprintf('Transformed file saved as %s.\n',filename_out)
     elseif img_in.hdr.dime.dim(1) == 4
@@ -104,6 +108,10 @@ try
             
         end
         
+        % Create output directory, if it doesn't exist already.
+        if exist(fileparts(filename_out),'dir') ~= 7
+            mkdir(fileparts(filename_out))
+        end          
         save_untouch_nii(img_out,filename_out);
         fprintf('Transformed file saved as %s.\n',filename_out)
     else

@@ -231,6 +231,10 @@ try
     
     if ~isempty(transform_file)
         % Copy the final transform file.
+        
+        if exist(fileparts(transform_file),'dir') ~= 7
+            mkdir(fileparts(transform_file))
+        end
         copyfile(transform_file_final,transform_file);
         
         % If registration was done in multiple steps, the  transformation 
@@ -272,8 +276,14 @@ try
             fixed_3D{1},fixed_3D{1},...
             transform_file_final,...
             par_file_inv,fullfile(tmpdir,'inv'));
+        
+        if ~isempty(mask)
+            % Add fixed mask, if provided.
+            elastix_cmd = [elastix_cmd sprintf(' -fMask %s',mask)];
+        end        
         system(elastix_cmd);
-        set_ix(fullfile(tmpdir,'inv','TransformParameters.0.txt'),'InitialTransformParametersFileName','NoInitialTransform')
+        set_ix(fullfile(tmpdir,'inv','TransformParameters.0.txt'),...
+            'InitialTransformParametersFileName','NoInitialTransform')
         
         copyfile(fullfile(tmpdir,'inv','TransformParameters.0.txt'),transform_inv)
 
@@ -297,6 +307,9 @@ try
         img_reg = fullfile(tmpdir,sprintf('step%02d',nSteps),...
         'result.0.nii.gz');
     
+        if exist(fileparts(result_image),'dir') ~= 7
+            mkdir(fileparts(result_image))
+        end
         if exist(img_reg,'file') == 2
             % Result image was written. Copy this file.
             movefile(img_reg,result_image)
@@ -317,6 +330,10 @@ try
         transformix_cmd = sprintf('transformix -def all -out %s -tp %s',...
             tmpdir,transform_file);
         system(transformix_cmd);
+        
+        if exist(fileparts(deformation),'dir') ~= 7
+            mkdir(fileparts(deformation))
+        end
         movefile(fullfile(tmpdir,'deformationField.nii.gz'),deformation)
         fprintf(' completed. Saved as: %s\n',deformation)
     end
@@ -328,7 +345,9 @@ try
         transformix_cmd = sprintf('transformix -jacmat all -out %s -tp %s',...
             tmpdir,transform_file);
         system(transformix_cmd);
-        
+        if exist(fileparts(jacobian),'dir') ~= 7
+            mkdir(fileparts(jacobian))
+        end
         movefile(fullfile(tmpdir,'fullSpatialJacobian.nii.gz'),jacobian)
         fprintf(' completed. Saved as: %s\n',jacobian)
     end

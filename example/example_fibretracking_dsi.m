@@ -77,7 +77,7 @@ save(filename.Tracts,'-struct','DTItracts')
 %
 % Type 'help InspectTracts' to explore the options for usage.
 
-InspectTracts('Tracts',DTItracts1,...
+InspectTracts('Tracts',DTItracts,...
     'SurfModel',SurfModel);
 
 % Alternatively, you can give the filenames of the DTItracts and surface 

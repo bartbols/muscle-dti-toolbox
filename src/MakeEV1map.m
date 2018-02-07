@@ -90,6 +90,9 @@ eigvec_map(:,:,:,3) = B * scaling;
 % segmentation in ITK-snap this doesn't really matter because there will be
 % good contrast in colour between tissues with different eigenvectors
 % anyway.
+% Note 05/02/2018: The eigenvectors are now saved in the ITK coordinate
+% system, which is flipped in the x and y coordinates compared to the NIfTI
+% coordinate system.
 
 if DTI_nii.hdr.hist.srow_x(1) > 0
     eigvec_map = flip(eigvec_map,1);

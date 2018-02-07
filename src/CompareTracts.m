@@ -117,13 +117,15 @@ for i = 1 : N
         %         subplotnr = subplotnr + 1;
         %         if mod(subplotnr-1,4) == 0;subplotnr = subplotnr + 1;end
         %         subplot(3,4,subplotnr)
-        subplot(3,4,k);hold on
         %         set(subhandles(k),'Visible','on')
         
+        subplot(3,4,k);hold on
         % Check if variable exist. If not, continue with next.
         idx = strcmp(varNames,VARS{k,4});
         if ~any(idx)
             title([VARS{k,1} ' data not available'])
+            set(gca,'YLim',[0 0.01],...
+                'visible','off')
             %             subplotnr = subplotnr - 1;
             continue
         end
