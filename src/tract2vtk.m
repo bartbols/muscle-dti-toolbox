@@ -56,6 +56,20 @@ function tract2vtk(DTItracts,vtk_filename,varargin)
 %
 
 % Read inputs 
+
+if nargin == 0
+    % If no inputs are defined, select a DTI-tracts file and set the
+    % VTK-filename interactively.
+    
+    [FileName,PathName] = uigetfile('*.mat','Select a DTI tracts in MATLAB-format');
+    if PathName == 0;return;end
+    DTItracts = load(fullfile(PathName,FileName));
+    [FileName,PathName] = uiputfile('*.vtk','Set the filename for the VTK-file');
+    vtk_filename = fullfile(PathName,FileName);
+    if PathName == 0;return;end
+end
+
+
 tic
 default_clist = {'fibrelength','penangle','penangle_l','curvature',...
     'pennation1','pennation2','pct_ext','fa','md','lambda1','lambda2','lambda3'};
