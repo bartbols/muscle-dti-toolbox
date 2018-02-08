@@ -75,7 +75,7 @@ addParameter(p,'SurfModelEdgeColor','y',@(x) ischar(x) || isnumeric(x))
 addParameter(p,'SurfModelEdgeAlpha',0.1,@(x)validateattributes(x,{'numeric'},{'scalar'}))
 
 % Aponeurosis model
-addParameter(p,'aponeurosis',[],@(x) isstruct(x) || endsWith(x,'.stl','IgnoreCase',true))
+addParameter(p,'aponeurosis',[])
 addParameter(p,'aponeurosisColor','r',@(x) ischar(x) || isnumeric(x))
 addParameter(p,'aponeurosisAlpha',0.5,@(x)validateattributes(x,{'numeric'},{'scalar'}))
 addParameter(p,'aponeurosisEdgeColor','r',@(x) ischar(x) || isnumeric(x))
