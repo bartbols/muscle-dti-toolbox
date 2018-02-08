@@ -354,7 +354,7 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
     try
         % Save as new file
         char_list = char(['a':'z' '0':'9']) ;
-        tmp_file = fullfile(pwd,[char_list(ceil(length(char_list)*rand(1,8))) '.nii.gz']);
+        tmp_file = fullfile(tempdir,[char_list(ceil(length(char_list)*rand(1,8))) '.nii.gz']);
         save_untouch_nii(DWI_uncorr,tmp_file);
         
         % Make SRC file with DSI Studio
@@ -386,7 +386,7 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
     mask.hdr.hist.srow_x = [voxel_size(1) 0 0 0];
     mask.hdr.hist.srow_y = [0 voxel_size(2) 0 0];
     mask.hdr.hist.srow_z = [0 0 voxel_size(3) 0];
-    tmp_mask_fname = fullfile(pwd,'tmp.nii.gz');
+    tmp_mask_fname = fullfile(tempdir,'tmp.nii.gz');
     save_untouch_nii(mask,tmp_mask_fname);
     
     commandTxt = sprintf('dsi_studio --action=rec --source=%s --method=%d --mask=%s --check_btable=0 --output_tensor=1 --output=%s',...

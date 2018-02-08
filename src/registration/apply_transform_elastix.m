@@ -41,7 +41,7 @@ ref_image    = p.Results.ref_image;
 char_list = char(['a':'z' '0':'9']) ;
 tmpdir = [];
 while exist(tmpdir,'dir') == 7 || isempty(tmpdir)
-    tmpdir = fullfile(pwd,char_list(ceil(length(char_list)*rand(1,8))));
+    tmpdir = fullfile(tempdir,char_list(ceil(length(char_list)*rand(1,8))));
 end
 mkdir(tmpdir)
 
