@@ -37,7 +37,7 @@ p = inputParser;
 addRequired(p,'DTItracts',@(x) isstruct(x) || exist(x,'file')==2)
 addRequired(p,'SurfModel',@(x) isstruct(x) || endsWith(x,'.stl','IgnoreCase',true))
 addParameter(p,'order',3,@(x) isscalar(x) && x>0)
-addParameter(p,'aponeurosis',[],@(x) isstruct(x) || endsWith(x,'.stl','IgnoreCase',true))
+addParameter(p,'aponeurosis',[])
 parse(p,DTItracts,SurfModel,varargin{:})
 
 order       = p.Results.order;
