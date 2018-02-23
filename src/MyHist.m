@@ -42,10 +42,15 @@ TextPos  = p.Results.TextPos;
 Text     = p.Results.Text;
 BarAlpha = p.Results.BarAlpha;
 
+% Remove the Inf's
+data(isinf(data)) = [];
 first  = floor(min(data/binsize)) * binsize;
 last   = ceil(max(data/binsize)) * binsize;
 [n,c] = hist(data, first : binsize : last);
-
+if numel(c) == 1
+    c = c +[-1 0 1]*binsize;
+    n = [0 n 0];
+end
 if nargout < 2
     % If no or one output is requested, plot the distribution as a bar or
     % line plot

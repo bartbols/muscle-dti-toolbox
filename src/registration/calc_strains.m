@@ -71,8 +71,11 @@ addRequired(p,'transform_file',@(x) exist(x,'file') == 2)
 addRequired(p,'filename_EV1',@(x) contains(x,'.nii'))
 addRequired(p,'results_path')
 addParameter(p,'mask',[],@(x) contains(x,'.nii'))
+addParameter(p,'F',[])
 parse(p,transform_file,filename_EV1,results_path,varargin{:});
+
 filename.mask    = p.Results.mask;
+F               = p.Results.F;
 
 % Create temporary working directory.
 char_list = char(['a':'z' '0':'9']) ;
@@ -97,33 +100,36 @@ try
     EV1 = load_untouch_nii(filename_EV1);
 %     EV1.img(:,:,:,1:2) = -EV1.img(:,:,:,1:2);
     
-    % Copy the transform file to the local working directory and modify the
-    % spatial information to match the reference image (if a reference
-    % images is provided).
-    transform_tmp = fullfile(tmpdir,'transform.txt');
-    if ~isempty(filename_EV1)
-        ModifyTransformFile(transform_file,EV1,transform_tmp)
-    else
-        copyfile(transform_file,transform_tmp)
+
+    if isempty(F)
+        % Copy the transform file to the local working directory and modify the
+        % spatial information to match the reference image (if a reference
+        % images is provided).
+        transform_tmp = fullfile(tmpdir,'transform.txt');
+        if ~isempty(filename_EV1)
+            ModifyTransformFile(transform_file,EV1,transform_tmp)
+        else
+            copyfile(transform_file,transform_tmp)
+        end
+
+        % Calculate deformation field
+        transformix_cmd = sprintf('transformix -def all -out %s -tp %s',...
+            tmpdir,transform_tmp);
+        system(transformix_cmd);
+
+        def = load_untouch_nii(fullfile(tmpdir,'deformationField.nii.gz'));
+
+        % Flip coordinates to NIfTI coordinates
+    %     def.img(:,:,:,:,1:2) = -def.img(:,:,:,:,1:2);
+
+        % Calculate full spatial jacobian
+        transformix_cmd = sprintf('transformix -jacmat all -out %s -tp %s',...
+            tmpdir,transform_tmp);
+        system(transformix_cmd);
+
+        % Load spatial jacobian.
+        F     = load_untouch_nii(fullfile(tmpdir,'fullSpatialJacobian.nii.gz'));
     end
-    
-    % Calculate deformation field
-    transformix_cmd = sprintf('transformix -def all -out %s -tp %s',...
-        tmpdir,transform_tmp);
-    system(transformix_cmd);
-    
-    % Flip coordinates to NIfTI coordinates
-    def = load_untouch_nii(fullfile(tmpdir,'deformationField.nii.gz'));
-%     def.img(:,:,:,:,1:2) = -def.img(:,:,:,:,1:2);
-    
-    % Calculate full spatial jacobian
-    transformix_cmd = sprintf('transformix -jacmat all -out %s -tp %s',...
-        tmpdir,transform_tmp);
-    system(transformix_cmd);
-    
-    % Load spatial jacobian.
-    F     = load_untouch_nii(fullfile(tmpdir,'fullSpatialJacobian.nii.gz'));
-    
     % Again, flip to NIfTI coordinates.
     % Elastix works in ITK coordinates, which have x and y-axis in opposite
     % directions to the NIfTI coordinates in which we work here. Correct
@@ -133,7 +139,7 @@ try
 %     F.img(:,:,:,:,[3 6 7 8]) = -F.img(:,:,:,:,[3 6 7 8]);
     
     % Get image dimensions
-    imdim = F.hdr.dime.dim(2:4);
+    imdim = EV1.hdr.dime.dim(2:4);
     
     %% Calculate strain tensors
     
@@ -197,6 +203,7 @@ try
     B2     = zeros(imdim);
     PSmag  = zeros(imdim);
     PSdir  = zeros([imdim,3]);
+    detF   = zeros(imdim);
     for i = 1 : imdim(1)
         waitbar(i / imdim(1),hwait);
         for j = 1 : imdim(2)
@@ -210,13 +217,19 @@ try
                 % Get strain tensor and fibre direction of the current voxel
 %                 Cvoxel = squeeze(C(i,j,k,1:3,1:3)) - eye(3);
                 fib_dir = squeeze(EV1.img(i,j,k,:));
+                if all(fib_dir==0);continue;end
                 
                 % Calculate the stretch tensor
 %                 U = sqrtm(Cvoxel+eye(3));
                 
-                % Get the deformation gradient (spatial jacobian)
-                Fvoxel = reshape(squeeze(F.img(i,j,k,:,:)),3,3);
+                if isstruct(F)
+                    % Get the deformation gradient (spatial jacobian)
+                    Fvoxel = reshape(squeeze(F.img(i,j,k,:,:)),3,3);
+                else
+                    Fvoxel = F;
+                end
                 
+                detF(i,j,k) = det(Fvoxel);
                 % Remove the dilatoric component by dividing J^(1/3), where
                 % J is the determinant of the deformation gradient matrix.
 %                 Fvoxel = Fvoxel * det(Fvoxel)^(-1/3);
@@ -242,18 +255,32 @@ try
                 I4 = fib_dir' * Cvoxel * fib_dir;
                 I5 = fib_dir' * Cvoxel^2 * fib_dir;
                 
+%                 % Definition in Pamuk et al. 2016, J Mech Beh Biom Mat.
+%                 % This is indeed equivalent to definition by Blemker.
+%                 J = det(Cvoxel);
+%                 Lm = J^(-1/3)*sqrt((fib_dir'*Cvoxel*fib_dir));
+%                 psi = sqrt((fib_dir'*Cvoxel^2*fib_dir) / (fib_dir'*Cvoxel*fib_dir)^2-1);                
+%                 I4y = J^(2/3)*Lm^2;
+%                 I5y = J^(4/3)*Lm^4*(1+psi^2);
+                
                 % Calculate along fibre stretch. Definition according to Blemker
                 % et al. 2005, eq. 3.
                 LAMBDA(i,j,k) = sqrt(I4);
                 B1(i,j,k) = sqrt(I5 /(I4.^2)-1);
-                B2(i,j,k) = acosh( (I1*I4-I5) / (2*sqrt(I4)));
+                % definition according to Blemker often gives imaginary
+                % resutls.
+%                 B2(i,j,k) = acosh( (I1*I4-I5) / (2*sqrt(I4)));
+                
+                % This is the definition from Criscione (2001) (variable
+                % beta3 in eq. 5.3c).
+                B2(i,j,k) = log( (I1*I4-I5) / (2*sqrt(I3*I4)) + sqrt( (I1*I4-I5)^2 / (2*sqrt(I3*I4))^2 - 1));
             end
         end
     end
     
     % Calculate the component of shear in the fibre direction (i.e. the
     % contribution of shear to lengthening)
-    D = B1 .* LAMBDA;
+%     D = B1 .* LAMBDA;
     close(hwait)
     
 %     % Make sure that all principal strain vectors point in the positive z-direction
@@ -261,9 +288,9 @@ try
     %% Save the results
     
     % Save the along-fibre stress map as LAMBDA.nii.gz
-    S = F;
+    S = EV1;
     S.hdr.dime.dim = [3 imdim 1 1 1 1];
-    S.img = cast(LAMBDA,'like',F.img);
+    S.img = cast(LAMBDA,'like',EV1.img);
     S.hdr.dime.glmax = max(S.img(:));
     S.hdr.dime.glmin = min(S.img(:));
     if exist(results_path,'dir') ~= 7
@@ -274,7 +301,7 @@ try
     fprintf('Along-fibre stretch field saved as %s\n',filename.lambda)
     
     % Save the along-fibre shear map as B1.nii.gz
-    S.img = cast(B1,'like',F.img);
+    S.img = cast(B1,'like',EV1.img);
     S.hdr.dime.glmax = max(S.img(:));
     S.hdr.dime.glmin = min(S.img(:));
     filename.B1 = fullfile(results_path,'B1.nii.gz');
@@ -282,23 +309,31 @@ try
     fprintf('Along-fibre shear field saved as %s\n',filename.B1)
     
     % Save the cross-fibre shear map as B2.nii.gz
-    S.img = cast(B2,'like',F.img);
+    S.img = cast(B2,'like',EV1.img);
     S.hdr.dime.glmax = max(S.img(:));
     S.hdr.dime.glmin = min(S.img(:));
     filename.B2 = fullfile(results_path,'B2.nii.gz');
     save_untouch_nii(S,filename.B2)
     fprintf('Cross-fibre shear field saved as %s\n',filename.B2)
     
-    % Save the shear-length-component map as D.nii.gz
-    S.img = cast(D,'like',F.img);
+    % Save the determinant of F as detF.nii.gz
+    S.img = cast(detF,'like',EV1.img);
     S.hdr.dime.glmax = max(S.img(:));
     S.hdr.dime.glmin = min(S.img(:));
-    filename.D = fullfile(results_path,'D.nii.gz');
-    save_untouch_nii(S,filename.D)
-    fprintf('Shear-length component field saved as %s\n',filename.D)
+    filename.detF = fullfile(results_path,'detF.nii.gz');
+    save_untouch_nii(S,filename.detF)
+    fprintf('Determinant of F saved as %s\n',filename.detF)
+    
+%     % Save the shear-length-component map as D.nii.gz
+%     S.img = cast(D,'like',EV1.img);
+%     S.hdr.dime.glmax = max(S.img(:));
+%     S.hdr.dime.glmin = min(S.img(:));
+%     filename.D = fullfile(results_path,'D.nii.gz');
+%     save_untouch_nii(S,filename.D)
+%     fprintf('Shear-length component field saved as %s\n',filename.D)
     
     % Save the principal strain magnitude as PSmag.nii.gz
-    S.img = cast(PSmag,'like',F.img);
+    S.img = cast(PSmag,'like',EV1.img);
     S.hdr.dime.glmax = max(S.img(:));
     S.hdr.dime.glmin = min(S.img(:));
     filename.PSmag = fullfile(results_path,'PSmag.nii.gz');    
@@ -306,7 +341,7 @@ try
     fprintf('Principal strain magnitude map saved as %s\n',filename.PSmag)
     
     % Save the principal strain direction as PSdir.nii.gz
-    S.img = cast(PSdir,'like',F.img);
+    S.img = cast(PSdir,'like',EV1.img);
     S.hdr.dime.dim(1) = 4;
     S.hdr.dime.dim(5) = 3;
     S.hdr.dime.glmax = max(S.img(:));
@@ -315,14 +350,16 @@ try
     save_untouch_nii(S,filename.PSdir)
     fprintf('Principal strain direction map saved as %s\n',filename.PSdir)
     
-    % Save the deformation field
-    if ~isempty(mask)
-        % Set values outside mask to zero.
-        def.img = def.img .* repmat(cast(mask.img,'like',def.img)~=0,1,1,1,1,3);
+    if exist('def','var') == 1
+        % Save the deformation field
+        if ~isempty(mask)
+            % Set values outside mask to zero.
+            def.img = def.img .* repmat(cast(mask.img,'like',def.img)~=0,1,1,1,1,3);
+        end
+        filename.def = fullfile(results_path,'deformation.nii.gz');
+        save_untouch_nii(def,filename.def)
+        fprintf('Deformation field saved as as: %s\n',filename.def)
     end
-    filename.def = fullfile(results_path,'deformation.nii.gz');
-    save_untouch_nii(def,filename.def)
-    fprintf('Deformation field saved as as: %s\n',filename.def)
     
     % Remove temporary working directory.
     rmdir(tmpdir,'s')

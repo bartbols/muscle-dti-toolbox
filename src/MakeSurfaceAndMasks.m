@@ -107,11 +107,17 @@ while exist(tmpdir,'dir') == 7 || isempty(tmpdir)
 end
 mkdir(tmpdir)
 
-            
+
 try
     %%
     % Read in the label information file
-    LabelInfoFilename = [segm_filename(1:end-7) '.lab'];
+    if endsWith(segm_filename,'.gz')
+        LabelInfoFilename = [segm_filename(1:end-7) '.lab'];
+    elseif endsWith(segm_filename,'.nii')
+        LabelInfoFilename = [segm_filename(1:end-4) '.lab'];
+    else
+        error('Unknown file type for segmentation file. The file should have extension .nii or .nii.gz.')
+    end
     assert(exist(LabelInfoFilename,'file') == 2,...
         'Label information file %s does not exist. Create a valid label information file and store in the same folder as the segmentation file.',LabelInfoFilename)
     
@@ -189,6 +195,12 @@ try
     %%
     % Now all labels have been confirmed to exist, create mask files and
     % a surface file for each selected label.
+    
+    % Extract a 3D stack from the 4D DTI image to be used by convert3D
+    % (which can't handle 4D date) to resample the mask from anatomical
+    % image dimensions to DTI image dimensions. This only needs to be done
+    % once for all labels, so that's why it's placed outside the loop.
+    extract_3Dfrom4D(DTI_filename,fullfile(tmpdir,'DTI_3D.nii.gz'),1);
     c = 0;
     for CurrentIdx = idxToProcess'
         c = c + 1;
@@ -221,10 +233,10 @@ try
             end
             % Read into the workspace
             mask_iso = load_untouch_nii(fullfile(tmpdir,'mask_iso.nii.gz'));
-        
-        % -------------------- SURFACE MODELS ----------------------
-        % Create a surface model from the binary mask using the MATLAB toolbox
-        % iso2mesh
+            
+            % -------------------- SURFACE MODELS ----------------------
+            % Create a surface model from the binary mask using the MATLAB toolbox
+            % iso2mesh
             filename(c).surface = fullfile(p.Results.ResultsPath, sprintf('%s_%s.stl',MaskPrefix,CurrentLabelName));
             opt.radbound = 1;
             opt.maxsurf = 1;
@@ -243,7 +255,7 @@ try
             
             % Apply some smoothing
             [conn,connnum,count] = meshconn(FV.faces,size(FV.vertices,1));
-%             FV.vertices = smoothsurf(FV.vertices,[],conn,10,0.1,'laplacian');
+            %             FV.vertices = smoothsurf(FV.vertices,[],conn,10,0.1,'laplacian');
             FV.vertices = smoothsurf(FV.vertices,[],conn,50,0.7,'lowpass');
             
             % Transform to global coordinates
@@ -254,16 +266,16 @@ try
             FV.vertices = FV.vertices - 0.5;
             
             T = [mask_iso.hdr.hist.srow_x;...
-                 mask_iso.hdr.hist.srow_y;...
-                 mask_iso.hdr.hist.srow_z;...
-                 0 0 0 1];
-            if all(all(T(1:3,1:3)==0)) 
+                mask_iso.hdr.hist.srow_y;...
+                mask_iso.hdr.hist.srow_z;...
+                0 0 0 1];
+            if all(all(T(1:3,1:3)==0))
                 % The srow information is missing from the header.
                 % Calculate the spatial transformation matrix from the
                 % quaternion parameters.
                 T = makeT_from_quat( mask_iso );
             end
- 
+            
             tf = T * [FV.vertices ones(size(FV.vertices,1),1)]';
             FV.vertices = tf(1:3,:)';
             
@@ -279,33 +291,46 @@ try
         % that was outlined on the anatomical images needs to be cropped to the
         % dimensions of the DTI scans.
         
-        BB_anat = mask.hdr.dime.pixdim(2:4) .* mask.hdr.dime.dim(2:4);
-        BB_DTI  = DTI_data.hdr.dime.pixdim(2:4) .* DTI_data.hdr.dime.dim(2:4);
-        
-        if abs(BB_anat(3) - BB_DTI(3)) > 0.1
-            % Bounding box of DTI and anatomical mask are different. 
-            % Crop the mask to the dimensions of the DTI scan, assuming
-            % that the centre of the bounding boxes are aligned.
-            
-            nSlices = round(BB_DTI(3) ./ mask.hdr.dime.pixdim(4));
-            first_slice = round((BB_anat(3) - BB_DTI(3)) / (2*mask.hdr.dime.pixdim(4)))+1;
-            offset = (BB_anat(3) - BB_DTI(3)) /  (2*mask.hdr.dime.pixdim(4));
-            
-            mask_cropped = mask;
-            mask_cropped.img = mask.img(:,:,first_slice : 1 : (first_slice+nSlices-1));
-            
-            mask_cropped.hdr.dime.dim(4) = nSlices;
-            mask_cropped.hdr.hist.qoffset_z = mask_cropped.hdr.hist.qoffset_z + offset;
-            mask_cropped.hdr.hist.srow_z(4) = mask_cropped.hdr.hist.srow_z(4) + offset;
-            
-            % Overwrite the mask with the cropped version.
-            save_untouch_nii(mask_cropped,fullfile(tmpdir,'mask.nii.gz'));
-        end
+%         BB_anat = mask.hdr.dime.pixdim(2:4) .* mask.hdr.dime.dim(2:4);
+%         BB_DTI  = DTI_data.hdr.dime.pixdim(2:4) .* DTI_data.hdr.dime.dim(2:4);
         
         if MakeMasks == true
-            commandTxt = sprintf('c3d -int 0 %s -resample %dx%dx%d -o %s',...
+% -------------------------------------------------------------------------
+%             This is the old code that was used before I found out
+%             that c3d can resample to the dimensions of a reference image
+%             using the reslice-identity command
+%             if abs(BB_anat(3) - BB_DTI(3)) > 0.1
+%                 % Bounding box of DTI and anatomical mask are different.
+%                 % Crop the mask to the dimensions of the DTI scan, assuming
+%                 % that the centre of the bounding boxes are aligned.
+%                 
+%                 nSlices = round(BB_DTI(3) ./ mask.hdr.dime.pixdim(4));
+%                 first_slice = round((BB_anat(3) - BB_DTI(3)) / (2*mask.hdr.dime.pixdim(4)))+1;
+%                 offset = (BB_anat(3) - BB_DTI(3)) /  (2*mask.hdr.dime.pixdim(4));
+%                 
+%                 mask_cropped = mask;
+%                 mask_cropped.img = mask.img(:,:,first_slice : 1 : (first_slice+nSlices-1));
+%                 
+%                 mask_cropped.hdr.dime.dim(4) = nSlices;
+%                 mask_cropped.hdr.hist.qoffset_z = mask_cropped.hdr.hist.qoffset_z + offset;
+%                 mask_cropped.hdr.hist.srow_z(4) = mask_cropped.hdr.hist.srow_z(4) + offset;
+%                 
+%                 % Overwrite the mask with the cropped version.
+%                 save_untouch_nii(mask_cropped,fullfile(tmpdir,'mask.nii.gz'));
+%             end
+%             
+%             commandTxt = sprintf('c3d -int 0 %s -resample %dx%dx%d -o %s',...
+%                 fullfile(tmpdir,'mask.nii.gz'),...
+%                 siz(1),siz(2),siz(3),...
+%                 fullfile(tmpdir,'mask_resampled.nii.gz'));
+%             [status,cmdout] = system(commandTxt);
+% -------------------------------------------------------------------------
+            % Resample mask to DTI dimensions using the -reslice-identity
+            % command in convert3D, which resamples an image to the
+            % dimensions of a reference image.
+            commandTxt = sprintf('c3d %s %s -reslice-identity -o %s',...
+                fullfile(tmpdir,'DTI_3D.nii.gz'),...
                 fullfile(tmpdir,'mask.nii.gz'),...
-                siz(1),siz(2),siz(3),...
                 fullfile(tmpdir,'mask_resampled.nii.gz'));
             [status,cmdout] = system(commandTxt);
             
@@ -343,7 +368,7 @@ try
             
             % Create the boundary mask
             boundary_mask = full_mask;
-%             boundary_mask.img = cast(bwperim(boundary_mask.img,4),'like',boundary_mask.img);
+            %             boundary_mask.img = cast(bwperim(boundary_mask.img,4),'like',boundary_mask.img);
             boundary_mask.img = cast(~boundary_mask.img,'like',boundary_mask.img);
             
             % Remove n voxels from the boundary to make a seed mask

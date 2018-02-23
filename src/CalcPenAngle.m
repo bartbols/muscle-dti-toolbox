@@ -144,7 +144,7 @@ for fibnr = 1:nFibres
         if isempty(idx)
             continue
         end
-        penangle(fibnr,ep) = abs(mean(asind(sum(surf_model.normals(idx,:) .* repmat(slope,length(idx),1),2))));
+        penangle(fibnr,ep) = abs(mean(asind(sum(model.normals(idx,:) .* repmat(slope,length(idx),1),2))));
         
         
     end
