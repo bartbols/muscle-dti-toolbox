@@ -26,6 +26,7 @@ function CompareTracts(varargin)
 %                   this percentage of their total length.  Default = [] (include all fibres)
 % - mm_threshold  : Include only fibres that were extrapolated by less than
 %                   this length (in mm). Default = [] (include all fibres)
+% - color        : line colors (one rgb-vector for each tract file)
 
 
 % Read input arguments
@@ -36,10 +37,12 @@ addOptional(p,'input1',[],@(x) isstruct(x) || iscell(x))
 addOptional(p,'input2',[],@(x) iscell(x))
 addParameter(p,'pct_threshold',Inf,@(x) isscalar(x) || isempty(x))
 addParameter(p,'mm_threshold',Inf,@(x) isscalar(x) || isempty(x))
+addParameter(p,'color',[])
 parse(p,varargin{:})
 
 mm_threshold  = p.Results.mm_threshold;
 pct_threshold = p.Results.pct_threshold;
+color        = p.Results.color;
 
 if isempty(mm_threshold);mm_threshold = Inf;end
 if isempty(pct_threshold);pct_threshold = Inf;end
@@ -106,7 +109,9 @@ VARS = {'Raw tract length','mm',2,'length_mm';...
     '\lambda_3','1e-3 mm^2/s',0.05,'lambda3'};
 % Make variable abs_ext (absolute extension = sum of extension at
 % either end)
-colors = linspecer(N,'qualitative');
+if isempty(color)
+    color = linspecer(N,'qualitative');
+end
 for i = 1 : N
     DTItracts(i).abs_ext = nansum(DTItracts(i).ext,2);
     CELLDATA = struct2cell(DTItracts(i));
@@ -139,7 +144,7 @@ for i = 1 : N
         % Plot the distribution
         h = MyHist(data(selection),VARS{k,3},VARS{k,1},VARS{k,2},...
             'Type','line',...
-            'Color',colors(i,:),...
+            'Color',color(i,:),...
             'Text','mean',...
             'TextPos',[0.95 0.95-0.1*(i-1)],...
             'BarAlpha',0.5);
@@ -151,6 +156,6 @@ for i = 1 : N
     end
 end
 % Make all y-axis equal
-YLIM = cell2mat(get(findobj(gcf,'type','Axes'),'YLim'));
-set(findobj(gcf,'type','Axes'),'YLim',[0 max(YLIM(:,2))])
+% YLIM = cell2mat(get(findobj(gcf,'type','Axes'),'YLim'));
+% set(findobj(gcf,'type','Axes'),'YLim',[0 max(YLIM(:,2))])
 legend(handle,names,'Interpreter','None')

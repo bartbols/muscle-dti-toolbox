@@ -86,7 +86,7 @@ if nargout < 2
     end
     switch Text
         case 'mean'
-            txt = sprintf('mean (sd) = %.2f (%.2f)',nanmean(data),nanstd(data));
+            txt = sprintf('mean (sd) = %.2f (%.2f), median = %.2f',nanmean(data),nanstd(data),nanmedian(data));
         case 'all'
         txt = {sprintf('mean (sd) = %.2f (%.2f)',nanmean(data),nanstd(data)),...
                sprintf('median = %.2f%.2f)',nanmedian(data)),...

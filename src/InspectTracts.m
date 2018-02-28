@@ -46,6 +46,9 @@ function varargout = InspectTracts(varargin)
 %                   this percentage of their total length.  Default = [] (include all fibres)
 % - mm_threshold  : Include only fibres that were extrapolated by less than
 %                   this length (in mm). Default = [] (include all fibres)
+% - max_fibres    : maximum number of fibre to display. The number of
+%                   fibres is larger than max_fibres, fibres will be 
+%                   randomly selected.
 %
 % ----------------- OUTPUT -----------------
 % handles : handles to the plot objects
@@ -69,16 +72,16 @@ addParameter(p,'ToPlot',{'raw','poly'},@(x) iscell(x) || ischar(x))
 
 % Surface model
 addParameter(p,'SurfModel',[],@(x) isstruct(x) || endsWith(lower(x),'.stl'))
-addParameter(p,'SurfModelColor','y',@(x) ischar(x) || isnumeric(x))
+addParameter(p,'SurfModelColor','y',@(x) ischar(x) || isnumeric(x) || strcmp(x,'none'))
 addParameter(p,'SurfModelAlpha',0.25,@(x)validateattributes(x,{'numeric'},{'scalar'}))
-addParameter(p,'SurfModelEdgeColor','y',@(x) ischar(x) || isnumeric(x))
+addParameter(p,'SurfModelEdgeColor','y',@(x) ischar(x) || isnumeric(x) || strcmp(x,'none'))
 addParameter(p,'SurfModelEdgeAlpha',0.1,@(x)validateattributes(x,{'numeric'},{'scalar'}))
 
 % Aponeurosis model
 addParameter(p,'aponeurosis',[])
 addParameter(p,'aponeurosisColor','r',@(x) ischar(x) || isnumeric(x))
 addParameter(p,'aponeurosisAlpha',0.5,@(x)validateattributes(x,{'numeric'},{'scalar'}))
-addParameter(p,'aponeurosisEdgeColor','r',@(x) ischar(x) || isnumeric(x))
+addParameter(p,'aponeurosisEdgeColor','r',@(x) ischar(x) || isnumeric(x) || strcmp(x,'none'))
 addParameter(p,'aponeurosisEdgeAlpha',0.25,@(x)validateattributes(x,{'numeric'},{'scalar'}))
 
 % Some more plot options
@@ -89,6 +92,7 @@ addParameter(p,'Selection',[],@(x) isnumeric(x))
 addParameter(p,'fraction',1,@(x) validateattributes(x,{'numeric'},{'scalar','>',0,'<=',1}))
 addParameter(p,'pct_threshold',[],@(x) isscalar(x) || isempty(x))
 addParameter(p,'mm_threshold',[],@(x) isscalar(x) || isempty(x))
+addParameter(p,'max_fibres',[],@(x) isscalar(x) || isempty(x))
 parse(p,varargin{:})
 
 ToPlot          = p.Results.ToPlot;
@@ -102,6 +106,7 @@ fraction        = p.Results.fraction;
 mm_threshold    = p.Results.mm_threshold;
 pct_threshold   = p.Results.pct_threshold;
 aponeurosis     = p.Results.aponeurosis;
+max_fibres      = p.Results.max_fibres;
 
 SurfModelColor       = p.Results.SurfModelColor;
 SurfModelAlpha       = p.Results.SurfModelAlpha;
@@ -150,6 +155,7 @@ else
         Selection = find(Selection);
     end
 end
+
 
 % Check if extrapolation threshold are provided. If so, exclude fibres 
 % above these thresholds
@@ -231,6 +237,12 @@ else
     tmp = randperm(length(Selection),round(fraction*length(Selection)));
     SelectionPlot = Selection(tmp);
 end
+if ~isempty(max_fibres)
+    if length(Selection) > max_fibres
+        SelectionPlot = SelectionPlot(randperm(length(SelectionPlot),max_fibres));
+    end
+end
+
 k=0;
 for opt = ToPlot
     k = k + 1;
