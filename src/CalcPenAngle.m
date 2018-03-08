@@ -3,6 +3,10 @@ function penangle = CalcPenAngle( DTItracts,surf_model,varargin )
 %polynomial coefficient in PolyCoeff and endpoints, which are both fields in
 %DTItracts, with the surface model surf_model, described by its fields
 %'vertices' and 'faces'
+% Pennation angle is defined as 90 degr minus the median angle between the 
+% fibre and the normal vectors of all faces of the muscle surface/
+% aponeurosis model within the search radius around the endpoint (default 
+% value is 1.5mm).
 %
 % Bart Bolsterlee, Neuroscience Research Australia (NeuRA)
 % February 2017
@@ -17,7 +21,8 @@ function penangle = CalcPenAngle( DTItracts,surf_model,varargin )
 % - DTItracts  : a structure array containing at least the fields PolyCoeff
 %               and endpoints, as generated with ExtrapolateTracts
 % - surf_model : a structure array 'surface' containing the fields
-%                'vertices' and 'faces' and optionally 'normals'
+%                'vertices' and 'faces' and optionally 'normals' or a
+%                filename of an STL-file of the surface model.
 %
 % Optional input, provided as 'parameter',<value> pairs:
 % - aponeurosis   : a structure array containing the fields 'vertices' and
@@ -32,14 +37,19 @@ function penangle = CalcPenAngle( DTItracts,surf_model,varargin )
 
 %% Check inputs
 p = inputParser;
-addRequired(p,'DTItracts',@isstruct)
-addRequired(p,'surf_model',@isstruct)
-addParameter(p,'radius',2.5,@(x) validateattributes(x,{'numeric'},{'scalar'}) )
+addRequired(p,'DTItracts')
+addRequired(p,'surf_model')
+addParameter(p,'radius',1.5,@(x) validateattributes(x,{'numeric'},{'scalar'}) )
 addParameter(p,'aponeurosis',[])
 
 parse(p,DTItracts,surf_model,varargin{:})
 radius      = p.Results.radius;
 aponeurosis = p.Results.aponeurosis;
+
+% Read the surface model if a filename is provided.
+if ~isstruct(surf_model)
+    surf_model = stlread(surf_model);
+end
 
 % Read the aponeurosis surface, if provided
 if ~isempty(aponeurosis) && ~isstruct(aponeurosis)
@@ -120,31 +130,42 @@ for fibnr = 1:nFibres
             idx(proj>0) = [];
         end
         
-        
-        %         hold on
-        %         patch('Vertices',model.vertices,...
-        %             'Faces',model.faces(idx,:),...
-        %             'FaceColor','g',...
-        %             'FaceAlpha',0.2,...
-        %             'EdgeColor','g',...
-        %             'LineWidth',2)
-        %         quiver3(C(idx,1),C(idx,2),C(idx,3),...
-        %             model.normals(idx,1),...
-        %             model.normals(idx,2),...
-        %             model.normals(idx,3),5,'r')
-        %
-        %         quiver3(DTItracts.endpoints(fibnr,ep,1),...
-        %             DTItracts.endpoints(fibnr,ep,2),...
-        %             DTItracts.endpoints(fibnr,ep,3),...
-        %             slope(1),...
-        %             slope(2),...
-        %             slope(3),5,'k','LineWidth',3)
-        
         % calculate angle with normal vectors of selected triangles
         if isempty(idx)
             continue
         end
-        penangle(fibnr,ep) = abs(mean(asind(sum(model.normals(idx,:) .* repmat(slope,length(idx),1),2))));
+%         figure
+%         InspectTracts('Tracts',DTItracts,...
+%             'SurfModel',surf_model,...
+%             'aponeurosis',aponeurosis,...
+%             'Selection',fibnr,...
+%             'ToPlot','poly',...
+%             'PlotStats',false,...
+%             'LineWidth',2)
+%         hold on
+%         
+%         patch('Vertices',model.vertices,...
+%             'Faces',model.faces(idx,:),...
+%             'FaceColor','g',...
+%             'FaceAlpha',0.2,...
+%             'EdgeColor','g',...
+%             'LineWidth',2)
+%         quiver3(C(idx,1),C(idx,2),C(idx,3),...
+%             model.normals(idx,1),...
+%             model.normals(idx,2),...
+%             model.normals(idx,3),5,'r')
+%         
+%         quiver3(DTItracts.endpoints(fibnr,ep,1),...
+%             DTItracts.endpoints(fibnr,ep,2),...
+%             DTItracts.endpoints(fibnr,ep,3),...
+%             slope(1),...
+%             slope(2),...
+%             slope(3),5,'k','LineWidth',3)
+%         light
+%         axis equal
+%         
+        
+        penangle(fibnr,ep) = abs(median(asind(sum(model.normals(idx,:) .* repmat(slope,length(idx),1),2))));
         
         
     end

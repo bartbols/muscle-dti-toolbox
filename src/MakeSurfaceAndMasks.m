@@ -250,7 +250,7 @@ try
                 end
             end
             
-            [FV.vertices,FV.faces]=v2s(binary_mask,0.5,opt,method);
+            [FV.vertices,FV.faces]   = v2s(binary_mask,0.5,opt,method);
             [FV.vertices,FV.faces]   = surfreorient(FV.vertices,FV.faces);
             
             % Apply some smoothing
