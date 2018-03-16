@@ -220,6 +220,11 @@ try
         mask.img = cast(label_img.img == CurrentLabelNr,'like',mask.img);
         mask.hdr.dime.scl_slope = 1;
         mask.hdr.dime.scl_inter = 0;
+        if FillHoles == true
+            for slice_nr = 1 : size(mask.img,3)
+                mask.img(:,:,slice_nr) = imfill(mask.img(:,:,slice_nr),'holes');
+            end
+        end
         save_untouch_nii(mask,fullfile(tmpdir,'mask.nii.gz')); % has dimensions of anatomical scan
         
         if MakeSurface == true
@@ -242,15 +247,7 @@ try
             opt.maxsurf = 1;
             method = 'cgalsurf';
             
-            binary_mask = mask_iso.img;
-            
-            if FillHoles == true
-                for slice_nr = 1 : size(binary_mask,3)
-                    binary_mask(:,:,slice_nr) = imfill(binary_mask(:,:,slice_nr),'holes');
-                end
-            end
-            
-            [FV.vertices,FV.faces]   = v2s(binary_mask,0.5,opt,method);
+            [FV.vertices,FV.faces]   = v2s(mask_iso.img,0.5,opt,method);
             [FV.vertices,FV.faces]   = surfreorient(FV.vertices,FV.faces);
             
             % Apply some smoothing

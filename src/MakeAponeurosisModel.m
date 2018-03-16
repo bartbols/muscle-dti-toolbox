@@ -65,8 +65,8 @@ delete(fullfile(tempdir,'mask.nii.gz'))
 if isempty(label_number)
 %     [I,J,K] = ind2sub(mask.hdr.dime.dim(2:4),find(mask.img~=0));
     [I,J,K] = ind2sub(mask.hdr.dime.dim(2:4),find(mask.img>=0.5));
-else
-    [I,J,K] = ind2sub(mask.hdr.dime.dim(2:4),find(mask.img==label_number));
+% else
+%     [I,J,K] = ind2sub(mask.hdr.dime.dim(2:4),find(mask.img==label_number));
 end
 
 % Transform to global coordinates using the transformation in the header of
@@ -88,7 +88,7 @@ model.vertices = coords(:,1:3);
 model.faces = boundary(model.vertices,p.Results.shrink);
 
 % Apply some smoothing
-unsmoothed = model;
+% unsmoothed = model;
 conn = meshconn(model.faces,size(model.vertices,1));
 model.vertices = smoothsurf(model.vertices,[],conn,5,0.7,'lowpass');
 
