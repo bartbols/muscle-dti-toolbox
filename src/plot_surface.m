@@ -23,7 +23,7 @@ addRequired(p,'surf_model')
 addParameter(p,'FaceColor','r')
 addParameter(p,'FaceAlpha',0.3,@isscalar)
 addParameter(p,'EdgeColor','none')
-addParameter(p,'EdgeAlpha',1,@issclar)
+addParameter(p,'EdgeAlpha',1,@isscalar)
 addParameter(p,'ShowNormals',false)
 
 parse(p,surf_model,varargin{:})
@@ -58,9 +58,9 @@ end
 
 axis equal
 if holdstate == 0
-    hold(gca,'on')
-else
     hold(gca,'off')
+else
+    hold(gca,'on')
 end
 
 end

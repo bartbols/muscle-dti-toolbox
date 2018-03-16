@@ -2,8 +2,8 @@ function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings,varargin )
 %%TRACKFIBERS calls DSI studio to track fibres with the settings given by
 %the structure array TrackSettings.
 %
-% Note: this function requires DSI studio to be installed on the computer and 
-% added to the path so that 'dsi_studio' is recognised as an external command. 
+% Note: this function requires DSI studio to be installed on the computer and
+% added to the path so that 'dsi_studio' is recognised as an external command.
 % DSI Studio can be downloaded here:
 % http://dsi-studio.labsolver.org/dsi-studio-download
 %
@@ -37,8 +37,8 @@ function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings,varargin )
 %    - Smoothing   : smoothing factor (between 0-1 where 0 = no smoothing
 %                    and 1 = heavy smoothing. Default = 0
 %    - MaxTime     : maximum time (in sec) that DSI studio is allowed to
-%                    search for fibers. After MaxTime seconds, the search 
-%                    is terminated: no tracts will be saved and the 
+%                    search for fibers. After MaxTime seconds, the search
+%                    is terminated: no tracts will be saved and the
 %                    StopFlag is set to 0. Default 10 sec.
 %
 % Optional inputs, provided as parameter_name,<value> pairs.
@@ -65,7 +65,7 @@ function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings,varargin )
 %            how 'length' and 'tracts' are formatted.
 %            - t_elapsed: time it took to find the tracts (in seconds).
 %            - tracts_xyz: points on the tract segments in global
-%            coordinates 
+%            coordinates
 %            - length_mm: tract lengths in millimetres
 %
 %          2) A logical 'StopFlag': false (0) means no fibres were found
@@ -87,7 +87,7 @@ function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings,varargin )
 % the input structure TrackSettings, or it will be read from the source
 % file (fibre file). The fields tracts_xyz and length_mm are
 % added to DTItracts.
-% - BB 27/02/2017: 
+% - BB 27/02/2017:
 %     - changed input field in filename from .Source to .fib
 %     - Replaced fields OutputDir and OutputName in filename by the full
 %       tract filename in field 'tracts'
@@ -102,7 +102,7 @@ function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings,varargin )
 % argument 'seed_spacing' is provided, a regular seed grid with the spacing
 % specified by 'seed_spacing' will be generated. Fibre tracking is then
 % performed starting from these seed points.
-% 
+%
 % -------------------------------------------------------------------------
 
 % Check the inputs
@@ -191,7 +191,7 @@ if isfield(filename,'Seed') || ~isempty(seed_file)
             error('prog:input',...
                 'Seed region file ''%s'' does not exist. Tracking cannot be started.',...
                 filename.Seed)
-        else            
+        else
             fprintf('%-20s: %s\n', 'Seed region',filename.Seed)
         end
     end
@@ -211,18 +211,22 @@ if isfield(filename,'Seed') || ~isempty(seed_file)
         % Non-random seeding is selected. Generate seed locations
         % as a regular grid with spacing 'seed_spacing' (in mm) within
         % the seed region. Save the seeds with the tracts data
-        filename.SeedLocations = strrep(filename.Tracts,'.mat','_seeds.txt');            
+        filename.SeedLocations = strrep(filename.Tracts,'.mat','_seeds.txt');
+        fprintf('Creating a regular grid of seeds with spacing %.2fmm within region %s...',...
+            seed_spacing,filename.Seed);
+        
         seeds  =MakeSeeds(filename.Seed,filename.DTI,seed_spacing,...
             'seed_file',filename.SeedLocations);
         nSeeds = size(seeds,2);
         CommandTxt = horzcat(CommandTxt,[' --seed='    filename.SeedLocations ' --seed_plan=1']);
-
+        fprintf(' completed.\n')
+        
         % Remove limit on number of fibres from the track settings.
         if isfield(TrackSettings,'FiberCount');TrackSettings = rmfield(TrackSettings,'FiberCount');end
     elseif ~isempty(seed_file)
-        % A file with seed locations is provided.            
+        % A file with seed locations is provided.
         CommandTxt = horzcat(CommandTxt,[' --seed='    seed_file ' --seed_plan=1']);
-
+        
         % Remove limit on number of fibres from the track settings.
         if isfield(TrackSettings,'FiberCount');TrackSettings = rmfield(TrackSettings,'FiberCount');end
     else
@@ -286,13 +290,46 @@ else
 end
 
 % Add the TER filename to the command, if it exists.
+UseTER2 = false;
 fprintf('%-20s: ','TER: ')
 if isfield(filename,'TER')
     fprintf('%s\n', filename.TER)
     if exist(filename.TER,'file') ~= 2
         fprintf('TER file does not exist. Continue without TER.\n')
     else
-        CommandTxt = horzcat(CommandTxt,[' --ter='    filename.TER]);
+        % Check if a second region of termination is provided. If so,
+        % combine into one mask, because DSI studio cannot handle multiple
+        % regions of termination.
+        if isfield(filename,'TER2')
+            fprintf('%-20s: ','TER2: ')
+            fprintf('%s\n', filename.TER2)
+            if exist(filename.TER,'file') ~= 2
+                fprintf('TER2 file does not exist. Only TER is used.\n')
+                CommandTxt = horzcat(CommandTxt,[' --ter='    filename.TER]);
+            else
+                % Combine TER and TER2 into one new mask.
+                TER  = load_untouch_nii(filename.TER);
+                TER2 = load_untouch_nii(filename.TER2);
+                I1 = TER.img;
+                I2 = TER2.img;
+                if sign(TER2.hdr.hist.srow_x(1)) ~= sign(TER.hdr.hist.srow_x(1))
+                    I2 = flip(I2,1);
+                end
+                if sign(TER2.hdr.hist.srow_y(2)) ~= sign(TER.hdr.hist.srow_y(2))
+                    I2 = flip(I2,2);
+                end
+                TER_comb = TER;
+                TER_comb.img = cast(I1 | I2,'like',TER.img);
+                char_list = char(['a':'z' '0':'9']) ;
+                fname_TER2 = fullfile(tempdir,['TER_combined_' char_list(ceil(length(char_list)*rand(1,8))) '.nii.gz']);
+                save_untouch_nii(TER_comb,fname_TER2)
+                CommandTxt = horzcat(CommandTxt,[' --ter=' fname_TER2]);
+                UseTER2=true;
+            end
+        else
+           % TER2 is not defined. Just use TER as region of termination.
+           CommandTxt = horzcat(CommandTxt,[' --ter='    filename.TER]);
+        end
     end
 else
     fprintf('not defined. Continue without TER.\n')
@@ -362,7 +399,7 @@ if isfield(TrackSettings,'SeedCount')
         fprintf('%d\n',TrackSettings.SeedCount)
         CommandTxt = horzcat(CommandTxt,sprintf(' --seed_count=%d',TrackSettings.SeedCount));
     else
-    fprintf('not defined. There is no limit on the number of seeds.\n')
+        fprintf('not defined. There is no limit on the number of seeds.\n')
         
     end
 else
@@ -416,7 +453,7 @@ disp(cmdout)
 % [status,cmdout] = system(CommandTxt);
 % if ~isempty(strfind(cmdout,'internal or external command'))
 %     error('%s\n%s',cmdout,'Install DSI Studio and add to the path of your operating system. See documentation of the Muscle DTI toolbox for more information.')
-%     
+%
 % end
 
 
@@ -452,6 +489,11 @@ if StopFlag == 0
     DTItracts.FibreTrackTime = t_elapsed;
     warning('Tracts could not be found in %6.2f seconds so the search was terminated.',MaxTime)
 else
+    
+    % Delete temporary TER file
+    if UseTER2 == true
+        delete(fname_TER2)
+    end
     % Add the FileNames and TrackSettings as fields to the DTItracts struct, so
     % that it can always be checked later which settings were used for
     % tractography.
@@ -470,12 +512,12 @@ else
     for fibnr = 2:length(DTItracts.length)
         fibindex(fibnr,1) = fibindex(fibnr-1,2)+1;
         fibindex(fibnr,2) = sum(DTItracts.length(1:fibnr));
-%     if fibnr == 1
-%         p_start = 1;
-%     else
-%         p_start = DTItracts.length_summed(fibnr-1)+1;
-%     end
-%     p_end = DTItracts.length_summed(fibnr);
+        %     if fibnr == 1
+        %         p_start = 1;
+        %     else
+        %         p_start = DTItracts.length_summed(fibnr-1)+1;
+        %     end
+        %     p_end = DTItracts.length_summed(fibnr);
     end
     
     DTItracts.fibindex = fibindex;
@@ -485,10 +527,10 @@ else
     % header of the DTI file.
     DTI = load_untouch_nii(filename.DTI);
     T = [DTI.hdr.hist.srow_x;...
-         DTI.hdr.hist.srow_y;...
-         DTI.hdr.hist.srow_z;...
-         0 0 0 1];
-     
+        DTI.hdr.hist.srow_y;...
+        DTI.hdr.hist.srow_z;...
+        0 0 0 1];
+    
     % Flip the second dimension of tracts. I think this is because DSI
     % studio works in a different coordinate system. This may need further
     % checking but works well for the data we have collected so far.
@@ -496,7 +538,7 @@ else
     tracts(2,:) = (DTI.hdr.dime.dim(3)-1) - tracts(2,:);
     tracts_glob = T * [tracts;ones(1,size(tracts,2))];
     DTItracts.tracts_xyz = tracts_glob(1:3,:);
-
+    
     DTItracts.length_mm   = (DTItracts.length-1) * TrackSettings.StepSize;
     
     save(filename.Tracts,'-struct','DTItracts');
