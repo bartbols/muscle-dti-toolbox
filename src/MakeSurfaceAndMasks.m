@@ -49,6 +49,9 @@ function filename = MakeSurfaceAndMasks(segm_filename, DTI_filename, varargin )
 % - MakeSurface: if true, surfaces (.stl) are created. Default = true.
 % - FillHoles  : if true, all holes in the binary mask will be filled prior
 %                to surface reconstruction. Default = true.
+% - ResampleRes : isotropic voxelsize used for resampling the mask to. This
+%                 parameters determines the edgelength of the triangles in
+%                 the model. Default : 1.5.
 %
 %  MakeMasks and MakeSurface can be set to false if only surfaces or
 %  only masks are required. If both set to false, the function does nothing.
@@ -87,11 +90,13 @@ addParameter(p,'NumberOfVoxelsToRemove',2,@(x)(isnumeric(x) && mod(x,1)==0 && x>
 addParameter(p,'MakeSurface',true,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'MakeMasks',true,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'FillHoles',true,@(x) x==0 || x==1 || islogical(x) )
+addParameter(p,'ResampleRes',1.5,@isscalar)
 parse(p,segm_filename,DTI_filename,varargin{:});
 
 MakeSurface = p.Results.MakeSurface; % if true, surfaces are made
 MakeMasks   = p.Results.MakeMasks; % if true, masks are made
 FillHoles   = p.Results.FillHoles;
+res         = p.Results.ResampleRes;
 
 %% Create results folder if it doesnt' exist
 if exist(p.Results.ResultsPath,'dir') ~= 7
@@ -229,8 +234,8 @@ try
         
         if MakeSurface == true
             % Make a file with isotropic dimensions for surface model generation.
-            commandTxt = sprintf('c3d -int 3 %s -resample-mm 1.5x1.5x1.5mm -o %s',...
-                fullfile(tmpdir,'mask.nii.gz'),fullfile(tmpdir,'mask_iso.nii.gz'));
+            commandTxt = sprintf('c3d -int 3 %s -resample-mm %.2fx%.2fx%.2fmm -o %s',...
+                fullfile(tmpdir,'mask.nii.gz'),res,res,res,fullfile(tmpdir,'mask_iso.nii.gz'));
             [~,cmdout] = system(commandTxt);
             % Check if Convert 3D is installed.
             if contains(cmdout,'not recognized as an internal or external command')

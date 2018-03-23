@@ -429,7 +429,10 @@ if PlotStats == true
     
     set(gcf,'Position',get(0,'ScreenSize') + [0 100 0 -200])
 end
-if nargout == 1
+if nargout > 0
     varargout{1} = handles;
+    if nargout > 1
+        varargout{2} = handle_3D;
+    end
 end
 rotate3d

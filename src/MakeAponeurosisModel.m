@@ -47,24 +47,25 @@ else
     % Select voxels within the selected label.
     M.img = cast(M.img == label_number,'like',M.img);
 end
-save_untouch_nii(M,fullfile(tempdir,'mask.nii.gz'))    
+% save_untouch_nii(M,fullfile(tempdir,'mask.nii.gz'))    
 
-% Resample to isotropic dimensions to create a smooth surface with
-% faces that have more or less equally-sized edges (aspect ratio of 
-% triangles close to 1).
-commandTxt = sprintf('c3d -int 3 %s -resample-mm 0.5x0.5x0.5mm -o %s',...
-        fullfile(tempdir,'mask.nii.gz'),fullfile(tempdir,'mask_iso.nii.gz'));
-system(commandTxt);
-mask = load_untouch_nii(fullfile(tempdir,'mask_iso.nii.gz'));
+% % Resample to isotropic dimensions to create a smooth surface with
+% % faces that have more or less equally-sized edges (aspect ratio of 
+% % triangles close to 1).
+% commandTxt = sprintf('c3d -int 3 %s -resample-mm 0.5x0.5x0.5mm -o %s',...
+%         fullfile(tempdir,'mask.nii.gz'),fullfile(tempdir,'mask_iso.nii.gz'));
+% system(commandTxt);
+% mask = load_untouch_nii(fullfile(tempdir,'mask_iso.nii.gz'));
 
-% Clean up files.
-delete(fullfile(tempdir,'mask_iso.nii.gz'))
-delete(fullfile(tempdir,'mask.nii.gz'))
+% % Clean up files.
+% delete(fullfile(tempdir,'mask_iso.nii.gz'))
+% delete(fullfile(tempdir,'mask.nii.gz'))
 
 % Calculate point cloud with all voxel locations
 if isempty(label_number)
 %     [I,J,K] = ind2sub(mask.hdr.dime.dim(2:4),find(mask.img~=0));
-    [I,J,K] = ind2sub(mask.hdr.dime.dim(2:4),find(mask.img>=0.5));
+%     [I,J,K] = ind2sub(mask.hdr.dime.dim(2:4),find(mask.img>=0.5));
+    [I,J,K] = ind2sub(M.hdr.dime.dim(2:4),find(M.img~=0));
 % else
 %     [I,J,K] = ind2sub(mask.hdr.dime.dim(2:4),find(mask.img==label_number));
 end
@@ -72,12 +73,12 @@ end
 % Transform to global coordinates using the transformation in the header of
 % the mask image.
 
-T = [mask.hdr.hist.srow_x;mask.hdr.hist.srow_y;mask.hdr.hist.srow_z;0 0 0 1];
+T = [M.hdr.hist.srow_x;M.hdr.hist.srow_y;M.hdr.hist.srow_z;0 0 0 1];
 if all(all(T(1:3,1:3)==0)) 
     % The srow information is missing from the header.
     % Calculate the spatial transformation matrix from the
     % quaternion parameters.
-    T = makeT_from_quat( mask );
+    T = makeT_from_quat( M );
 end
 
 coords = [I-1 J-1 K-1 ones(size(I))] * T';
@@ -86,6 +87,11 @@ model.vertices = coords(:,1:3);
 % Use MATLAB's built-in 'boundary' function to create a closed surface
 % around the point cloud.
 model.faces = boundary(model.vertices,p.Results.shrink);
+
+% Remesh to a more regular distribution of triangles.
+opt.gridsize = 0.25;opt.closesize = 0.5;opt.elemsize = 0.5;
+[model.vertices,model.faces] = remeshsurf(model.vertices,model.faces,opt);
+[model.vertices,model.faces] = surfreorient(model.vertices,model.faces);
 
 % Apply some smoothing
 % unsmoothed = model;
