@@ -60,6 +60,7 @@ guidata(hObject, handles);
 set(gcf,'MenuBar','figure')
 axes(handles.axes3D)
 axis equal vis3d
+view(-40,5)
 % UIWAIT makes FibreInspecter wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
 
@@ -145,7 +146,7 @@ end
 [filename,pathstr]= uigetfile('*.mat','Select a DTI tract file',handles.previous_tract_path);
 
 if filename == 0;return;end
-handles.previous_path = pathstr;
+handles.previous_tract_path = pathstr;
 set(findobj(gcf,'Tag','tract_edit'),...
     'String',fullfile(pathstr,filename),...
     'TooltipString',fullfile(pathstr,filename))
@@ -669,6 +670,13 @@ if isfield(handles,'tracts_ext')
     delete(handles.tracts_ext);
     handles = rmfield(handles,'tracts_ext');
 end
+for k = 1 : 12
+    eval(sprintf('axes(handles.axes%d);',k))
+    cla
+    set(gca,'Visible','off')
+end
+set(handles.Nfibres,'String','')
+
 guidata(hObject, handles);
     
 
