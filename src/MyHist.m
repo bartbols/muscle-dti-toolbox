@@ -29,10 +29,13 @@ addRequired(p,'varName')
 addRequired(p,'units')
 addParameter(p,'Type','bar',@(x) any(strcmp(x,{'bar','line'})))
 addParameter(p,'Color','b')
+addParameter(p,'EdgeColor','none')
+addParameter(p,'TextColor',[])
 addParameter(p,'Fraction',true,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'Text','all',@(x) any(strcmp(x,{'mean','all'})));
 addParameter(p,'TextPos',[0.95 0.95],@(x) isnumeric(x) && numel(x) == 2)
 addParameter(p,'BarAlpha',1,@(x) isnumeric(x) && x >= 0 && x <= 1)
+addParameter(p,'FontWeight','normal',@(x) strcmp(x,'normal') || strcmp(x,'bold'))
 parse(p,data,binsize,varName,units,varargin{:})
 
 color    = p.Results.Color;
@@ -41,6 +44,12 @@ fraction = p.Results.Fraction;
 TextPos  = p.Results.TextPos;
 Text     = p.Results.Text;
 BarAlpha = p.Results.BarAlpha;
+fontweight = p.Results.FontWeight;
+EdgeColor = p.Results.EdgeColor;
+TextColor = p.Results.TextColor;
+if isempty(TextColor)
+    TextColor = color;
+end
 
 % Remove the Inf's
 data(isinf(data)) = [];
@@ -59,11 +68,11 @@ if nargout < 2
             if fraction == true
                 handle = bar(c,n / sum(n),'FaceColor',color,...
                     'FaceAlpha',BarAlpha,...
-                    'EdgeColor','none');
+                    'EdgeColor',EdgeColor);
             else
                 handle = bar(c,n,'FaceColor',color,...
                     'FaceAlpha',BarAlpha,...
-                    'EdgeColor','none');
+                    'EdgeColor',EdgeColor);
             end
         case 'line'
             if fraction == true
@@ -77,7 +86,7 @@ if nargout < 2
         varargout{1} = handle;
     end
     % Add title
-    title(sprintf('%s, binsize = %.2f',varName,binsize))
+    title(sprintf('%s, binsize = %.2f',varName,binsize),'FontSize',10)
     xlabel([varName ' (' units ')'])
     if fraction == true
         ylabel('fraction of total')
@@ -94,7 +103,7 @@ if nargout < 2
     end
     text(TextPos(1),TextPos(2),txt,...
         'HorizontalAlignment','Right','VerticalAlignment','Top',...
-        'Color',color,'Units','Normalized')
+        'Color',TextColor,'Units','Normalized','FontWeight',fontweight,'FontSize',10)
 elseif nargout == 2
     % If two outputs are requested, don't plot the data but return the bin
     % centres (c) and counts per bin (n) as outputs.

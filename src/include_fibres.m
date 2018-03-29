@@ -1,11 +1,11 @@
 function [incl,settings,pre_selected] = include_fibres( DTItracts,varargin )
 %EXCLUDE_FIBRES This function selects fibres for inclusion based on
 %quantitative comparison of architecture parameters with neighbouring
-%tracts. For each fibre, fibres within a selected radius (default = 2 mm)
+%tracts. For each fibre, fibres within a selected radius (default = 2.5 mm)
 %around the midpoint of the fibre are selected. If the length of the fibre
-%is in the lowest or highest 10th percentile (default value) of the lengths
-%of all neighbouring fibres, the fibres is excluded. The fibre is also
-%marked for exclusion if the fibre length deviates by more than 5 mm
+%is in the lowest or highest 5th percentile (default value) of the lengths
+%of all neighbouring fibres, the fibre is excluded. The fibre is also
+%marked for exclusion if the fibre length deviates by more than 10 mm
 %(default) of the median length of its neighbours.
 %
 % Bart Bolsterlee, Neuroscience Research Australia
@@ -19,17 +19,17 @@ function [incl,settings,pre_selected] = include_fibres( DTItracts,varargin )
 % Required inputs
 % - DTItracts: MATLAB structure (or filename) containing the DTI tracts and
 %              architectural parameters (fibrelength)
-
+%
 % Optional inputs, provided as 'parameter',<value> pairs:
-% - selection : list of fibre indices used for the quantitative analysis.
-% - r         : radius (in mm) around the fibre midpoint to mark fibres as
+% selection    : list of fibre indices used for the quantitative analysis.
+% r            : radius (in mm) around the fibre midpoint to mark fibres as
 %               neighbours. Fibres with at least one tract point within
 %               distance r of the midpoint of the selected fibre are
-%               considered neighbours. Default = 2.5 mm
+%               considered neighbours. Default = 5 mm
 % pct_threshold: percentage extension above which fibres are excluded.
-%                Default: 30
+%                Default: 30%
 % mm_threshold : absolute extension (in mm) above which fibres are
-%                excluded. Default: 20
+%                excluded. Default: 20 mm
 % min_length   : minimum fibre length. Default is minimum length used for
 %                fibre tracking.
 % max_length   : maximum fibre length. Default is maximum length used for
@@ -44,7 +44,7 @@ function [incl,settings,pre_selected] = include_fibres( DTItracts,varargin )
 %                the lengths of all its neighbours. Default = 10.
 % max_diff     : scalar indicating the maximum difference between the
 %                median fibre length of all neighbouring fibres and the
-%                selected fibre to be included.
+%                selected fibre to be included. Default: 10 mm
 %
 % OUTPUT:
 % excl        : list of fibre indices excluded based on the selected exclusion
@@ -53,12 +53,12 @@ function [incl,settings,pre_selected] = include_fibres( DTItracts,varargin )
 p = inputParser;
 addRequired(p,'DTItracts')
 addParameter(p,'selection',[],@isnumeric)
-addParameter(p,'r',2.5,@(x) isscalar(x) || isempty(x))
+addParameter(p,'r',5,@(x) isscalar(x) || isempty(x))
 addParameter(p,'pct_threshold',30,@(x) isscalar(x) || isempty(x))
 addParameter(p,'mm_threshold',20,@(x) isscalar(x) || isempty(x))
 addParameter(p,'min_length',[],@(x) isscalar(x) || isempty(x))
 addParameter(p,'max_length',[],@(x) isscalar(x) || isempty(x))
-addParameter(p,'max_diff',7.5,@(x) isscalar(x) || x > 0)
+addParameter(p,'max_diff',10,@(x) isscalar(x) || x > 0)
 addParameter(p,'apo_to_mus',true,@(x) islogical(x) || x==0 || x==1)
 addParameter(p,'diagnostics',false,@(x) islogical(x) || x==0 || x==1)
 addParameter(p,'prctile',5,@(x) isscalar(x) || isempty(x))
@@ -140,7 +140,7 @@ if constraint == true
     % Calculate midpoints of fibre tracts. Exclude NaNs.
     MP = zeros(3,N);
     tmp = round(mean(fibindex,2));
-    MP(:,~isnan(tmp)) = DTItracts.tracts_xyz(:,~isnan(tmp));
+    MP(:,~isnan(tmp)) = DTItracts.tracts_xyz(:,tmp(~isnan(tmp)));
 else
     % Use tract length (instead of fascicle length) and don't use
     % pre-selection based on extension thresholds.
@@ -206,23 +206,25 @@ for c = 1 : nFib
         fig = figure;
         subplot(1,2,1)
         hold on
-        plot3(P(1),P(2),P(3),'o','MarkerSize',20,'MarkerFaceColor','k',...
+        plot3(MP(1,fibnr),MP(2,fibnr),MP(3,fibnr),'o','MarkerSize',20,'MarkerFaceColor','k',...
             'MarkerEdgeColor','none')
         h1 = InspectTracts('Tracts',DTItracts,'PlotStats',false,...
             'selection',fibnr,'ToPlot','poly','color','b','linewidth',5);
         h2 = InspectTracts('Tracts',DTItracts,'PlotStats',false,...
             'selection',idx,'ToPlot','poly','color','r','linewidth',0.5);
         %     plot_surface(filename.apo_model,'FaceColor','none','FaceAlpha',1,'EdgeColor','k','EdgeAlpha',0.3)
+        axis on
         subplot(1,2,2)
         MyHist(fibre_length(idx),0.2,'Fascicle length','mm',...
             'Text','all')
-        text(0.95,0.50,{sprintf('Fascicle length = %.2f\nIncluded: %s\nThreshold = %.2f to %.2f\nDiff. from median = %.2f',...
+        text(0.05,0.95,{sprintf('Fascicle length = %.2f\nIncluded: %s\nThreshold = %.2f to %.2f\nDiff. from median = %.2f',...
             fibre_length(fibnr),txt,threshold(1),threshold(2),diff_from_median)},...
             'Units','Normalized',...
             'FontWeight','normal',...
             'FontSize',10,...
-            'HorizontalAlignment','right',...
-            'VerticalAlignment','bottom')
+            'HorizontalAlignment','left',...
+            'VerticalAlignment','top')
+        legend([h1 h2],{'current fibre','neighbouring fibres'})
         pause
         close(fig)
     end

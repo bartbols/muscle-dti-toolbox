@@ -83,7 +83,8 @@ DTItracts.penangle = CalcPenAngle( DTItracts,SurfModel,...
 % Calculate curvature
 DTItracts.curvature = CalcCurvature( DTItracts.PolyCoeff);
 
-
+% Add angle between direction vectors at endpoint.
+DTItracts.ang = acosd(sum(squeeze(DTItracts.endpoints_dir(:,1,:)) .* squeeze(DTItracts.endpoints_dir(:,2,:)),2)); 
 
 end
 
