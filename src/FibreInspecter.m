@@ -22,7 +22,7 @@ function varargout = FibreInspecter(varargin)
 
 % Edit the above text to modify the response to help FibreInspecter
 
-% Last Modified by GUIDE v2.5 29-Mar-2018 11:28:55
+% Last Modified by GUIDE v2.5 04-Apr-2018 18:45:20
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -57,7 +57,7 @@ handles.output = hObject;
 % Update handles structure
 guidata(hObject, handles);
 
-set(gcf,'MenuBar','figure')
+set(gcf,'MenuBar','none','ToolBar','figure')
 axes(handles.axes3D)
 axis equal vis3d
 view(-40,5)
@@ -160,18 +160,18 @@ if ~isempty(tractfilename)
         warning('Tract file %s not found.\n',tractfilename)
     end
 end
-if isfield(handles.D,'fibrelength')    
+if isfield(handles.D,'fibrelength')
     % Switch off poly and extensions
     set(handles.poly,'Value',1,'Enable','on')
     set(handles.ext,'Value',0,'Enable','on')
     set(handles.raw,'Value',0,'Enable','on')
     set(handles.from_apo_to_mus,'Enable','off','Value',0)
     if isfield(handles.D,'attach_type')
-        if any(handles.D.attach_type(:) == 2)            
+        if any(handles.D.attach_type(:) == 2)
             set(handles.from_apo_to_mus,'Enable','on','Value',1)
         end
     end
-else    
+else
     % Only raw tracts are available. Switch off poly and extension options.
     set(handles.poly,'Value',0,'Enable','off')
     set(handles.ext,'Value',0,'Enable','off')
@@ -324,15 +324,19 @@ function update_tracts_Callback(hObject, eventdata, handles)
 % hObject    handle to update_tracts (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+threshold_names = {'pct_ext','abs_ext','fibrelength','pennation','curvature'...
+    'ang','length_mm','fa','md','lambda1','lambda2','lambda3'};
+nT = length(threshold_names);
 
 axes(handles.axes3D)
 % Update the tracts
 if ~isempty(handles.D)
     hold on
     % Get selection from table
-    if strcmp(hObject.Tag,'select_tract')
+    if strcmp(hObject.Tag,'select_tract') || strcmp(hObject.Tag,'reset_thresholds')
         % New tracts were loaded. Display all values and automatically set
         % the thresholds.
+        set(findobj(gcf,'Tag','max_fibres'),'String',int2str(size(handles.D.fibindex,1)))
         if ~isfield(handles.D,'ang') && isfield(handles.D,'endpoints_dir')
             handles.D.ang = acosd(sum(squeeze(handles.D.endpoints_dir(:,1,:)) .* squeeze(handles.D.endpoints_dir(:,2,:)),2));
         end
@@ -342,47 +346,66 @@ if ~isempty(handles.D)
         if isfield(handles.D,'penangle') && ~isfield(handles.D,'pennation')
             handles.D.pennation = nanmean(handles.D.penangle,2);
         end
-        if isfield(handles.D,'fibrelength')
-            handles.threshold_table.Data = {...
-                floor(min(handles.D.pct_ext))    , ceil(max(handles.D.pct_ext));...
-                floor(min(handles.D.abs_ext))    , ceil(max(handles.D.abs_ext));...
-                floor(min(handles.D.fibrelength)), ceil(max(handles.D.fibrelength));...
-                floor(min(handles.D.pennation))  , ceil(max(handles.D.pennation));...
-                floor(min(handles.D.curvature))  , ceil(max(handles.D.curvature));...
-                floor(min(handles.D.ang))        , ceil(max(handles.D.ang));...
-                floor(min(handles.D.length_mm))  , ceil(max(handles.D.length_mm))};
-        else
-            % Only raw tracts are available
-            handles.threshold_table.Data = {NaN,NaN;NaN NaN;NaN NaN;...
-                NaN,NaN;NaN NaN;NaN NaN;...
-                floor(min(handles.D.length_mm)),ceil(max(handles.D.length_mm))};
+        
+        D = struct2cell(handles.D);
+        F = fieldnames(handles.D);
+        % Set up the thresholds based on the available fields and
+        thresholds = num2cell(NaN(nT,2));
+        for t = 1 : nT
+            idx = find(strcmp(threshold_names(t),F));
+            if isempty(idx);continue;end
+            
+            if any(strcmp(threshold_names(t),{'fa','md','lambda1','lambda2','lambda3'}))
+                thresholds{t,1} = floor(min(D{idx}*100))/100;
+                thresholds{t,2} = ceil(max(D{idx}*100))/100;
+                
+            else
+                thresholds{t,1} = floor(min(D{idx}));
+                thresholds{t,2} = ceil(max(D{idx}));
+            end
         end
+        handles.threshold_table.Data = thresholds;
     end
     
     % Get thresholds from the table
     thresholds = handles.threshold_table.Data;
     
-    if isfield(handles.D,'fibrelength')
-        if get(handles.from_apo_to_mus,'Value')
-            is_from_apo_to_mus = (handles.D.attach_type(:,1) ~= handles.D.attach_type(:,2));
-        else
-            is_from_apo_to_mus = true(size(handles.D.pct_ext,1),1);
-        end
-        selection = find(handles.D.pct_ext     > thresholds{1,1} & handles.D.pct_ext     < thresholds{1,2} & ...
-            handles.D.abs_ext     > thresholds{2,1} & handles.D.abs_ext     < thresholds{2,2} & ...
-            handles.D.fibrelength > thresholds{3,1} & handles.D.fibrelength < thresholds{3,2} & ...
-            handles.D.pennation   > thresholds{4,1} & handles.D.pennation   < thresholds{4,2} & ...
-            handles.D.curvature   > thresholds{5,1} & handles.D.curvature   < thresholds{5,2} & ...
-            handles.D.ang         > thresholds{6,1} & handles.D.ang         < thresholds{6,2}  & ...
-            handles.D.length_mm   > thresholds{7,1} & handles.D.length_mm   < thresholds{7,2} & ...
-            is_from_apo_to_mus)';
+    %     if isfield(handles.D,'fibrelength')
+    if get(handles.from_apo_to_mus,'Value')
+        is_from_apo_to_mus = (handles.D.attach_type(:,1) ~= handles.D.attach_type(:,2));
     else
-        selection = find(handles.D.length_mm   > thresholds{7,1} & handles.D.length_mm   < thresholds{7,2});
+        is_from_apo_to_mus = true(size(handles.D.pct_ext,1),1);
     end
+    
+    is_selected = is_from_apo_to_mus;
+    
+    D = struct2cell(handles.D);
+    F = fieldnames(handles.D);  
+    for t = 1 : nT
+        idx = find(strcmp(threshold_names(t),F));
+        if isempty(idx);continue;end
+        % Only select the fibre included in the currently defined
+        % thresholds
+        is_selected = is_selected & D{idx} >= thresholds{t,1} & D{idx} <= thresholds{t,2};
+    end
+    % Make list of indices with selected fibres
+    selection  = find(is_selected)';
+    
+    % Check the maximum number of fibres
+    max_fibres = str2double(get(findobj(gcf,'Tag','max_fibres'),'String'));
+    if length(selection) > max_fibres
+        % Randomly select a number of fibres
+        rng(0)
+        selection3D = selection(randperm(length(selection),max_fibres));
+    else
+        selection3D = selection;
+    end
+    
     nSel = length(selection);
+    nSel3D = length(selection3D);
     nFib = size(handles.D.fibindex,1);
-    set(handles.Nfibres,'String',sprintf('Displaying %d of %d fibres (%.1f%%)',...
-        nSel,nFib,nSel/nFib*100))
+    set(handles.Nfibres,'String',sprintf('Displaying %d of %d fibres between the thresholds (%.1f%% of total)',...
+        nSel3D,nSel,nSel/nFib*100))
     
     if get(handles.poly,'Value')
         % Plot the polynomial fitted tracts, including extrapolations
@@ -392,7 +415,7 @@ if ~isempty(handles.D)
         else
             error('''PolyCoeff'' not found as a field in handles.D. Polynomials fits cannot be plotted.')
         end
-        for fibnr = selection
+        for fibnr = selection3D
             if isempty(P(fibnr).x);continue;end
             if any(isnan(handles.D.fibindex_trunc(fibnr,1:2)))
                 continue
@@ -411,7 +434,7 @@ if ~isempty(handles.D)
                 'LineWidth',1,...
                 'Color',get(handles.set_color_poly,'BackgroundColor'));
         else
-
+            
             % Update polynomials.
             set(handles.tracts_poly,'XData',PlotX(:),'YData',PlotY(:),'ZData',PlotZ(:))
         end
@@ -424,7 +447,7 @@ if ~isempty(handles.D)
     if get(handles.raw,'Value')
         % Plot the raw tracts
         PlotX = [];PlotY =[];PlotZ = [];
-        for fibnr = selection
+        for fibnr = selection3D
             PlotX = [PlotX handles.D.tracts_xyz(1,min(handles.D.fibindex(fibnr,1:2)):max(handles.D.fibindex(fibnr,1:2))) NaN];
             PlotY = [PlotY handles.D.tracts_xyz(2,min(handles.D.fibindex(fibnr,1:2)):max(handles.D.fibindex(fibnr,1:2))) NaN];
             PlotZ = [PlotZ handles.D.tracts_xyz(3,min(handles.D.fibindex(fibnr,1:2)):max(handles.D.fibindex(fibnr,1:2))) NaN];
@@ -440,13 +463,13 @@ if ~isempty(handles.D)
         end
     else
         if isfield(handles,'tracts_raw')
-             set(handles.tracts_raw,'XData',NaN,'YData',NaN,'ZData',NaN)
+            set(handles.tracts_raw,'XData',NaN,'YData',NaN,'ZData',NaN)
         end
     end
     if get(handles.ext,'Value')
         % Plot the extended parts
         PlotX = [];PlotY = [];PlotZ = [];
-        for fibnr = selection
+        for fibnr = selection3D
             if isfield(handles.D,'PolyCoeff')
                 P = handles.D.PolyCoeff;
             else
@@ -489,14 +512,14 @@ if ~isempty(handles.D)
         '\lambda_2','1e-3 mm^2/s',0.05,'lambda2';...
         '\lambda_3','1e-3 mm^2/s',0.05,'lambda3'};
     
-    CELLDATA = struct2cell(handles.D);
-    varNames = fieldnames(handles.D);
+    D = struct2cell(handles.D);
+    F = fieldnames(handles.D);
     for k = 1 : size(VARS,1)
         % Decide which subplot to display the data in
         eval(sprintf('axes(handles.axes%d);',k))
         set(gca,'Visible','on')
         % Check if variable exist. If not, continue with next.
-        idx = strcmp(varNames,VARS{k,4});
+        idx = strcmp(F,VARS{k,4});
         if ~any(idx)
             set(gca,'Visible','off')
             cla
@@ -504,13 +527,13 @@ if ~isempty(handles.D)
         else
             set(gca,'Visible','on')
             % Get the data
-            data = mean(CELLDATA{idx},2);
-
+            data = mean(D{idx},2);
+            
             % Filter the data to only plot histograms for the selected fibres
             % (if not selection is provided, histograms for all fibres are
             % provided)
             data = data(selection);
-
+            
             % Plot a histogram
             MyHist( data,VARS{k,3},VARS{k,1},VARS{k,2},...
                 'TextPos',[0.95,0.65 ],...
@@ -518,7 +541,9 @@ if ~isempty(handles.D)
                 'FontWeight','bold',...
                 'EdgeColor','none',...
                 'TextColor','k');
-            set(gca,'XLim',[min(data)-VARS{k,3} max(data+VARS{k,3})])
+            lims = [min(data)-VARS{k,3} max(data)+VARS{k,3}];
+            if isempty(lims);lims = [0 1];end
+            set(gca,'XLim',lims)
         end
         set(get(gca,'Title'),'Units','Normalized',...
             'Position',[0.95,0.95],...
@@ -528,13 +553,8 @@ if ~isempty(handles.D)
         ticklabelinside(gca,'y')
         if ~any(k==[1 5 9])
             set(get(gca,'YLabel'),'String','')
-%             % Bring ylabel inwards
-%             set(get(gca,'YLabel'),'Units','Normalized')
-%             pos = get(get(gca,'YLabel'),'Position');
-%             set(get(gca,'YLabel'),'Position',pos + [0.01 0 0])
         end
     end
-    
 end
 
 guidata(hObject, handles);
@@ -678,7 +698,7 @@ end
 set(handles.Nfibres,'String','')
 
 guidata(hObject, handles);
-    
+
 
 % --- Executes on button press in delete_mus.
 function delete_mus_Callback(hObject, eventdata, handles)
@@ -687,7 +707,7 @@ function delete_mus_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 if isfield(handles,'muscle')
     delete(handles.muscle)
-    handles = rmfield(handles,'muscle');    
+    handles = rmfield(handles,'muscle');
 end
 set(handles.mus_edit,'String',[]);
 guidata(hObject, handles);
@@ -700,7 +720,65 @@ function delete_apo_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 if isfield(handles,'apo')
     delete(handles.apo)
-    handles = rmfield(handles,'apo');    
+    handles = rmfield(handles,'apo');
 end
 set(handles.apo_edit,'String',[]);
 guidata(hObject, handles);
+
+
+% --------------------------------------------------------------------
+function menu_load_files_Callback(hObject, eventdata, handles)
+% hObject    handle to menu_load_files (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --------------------------------------------------------------------
+function load_tracts_menu_Callback(hObject, eventdata, handles)
+% hObject    handle to load_tracts_menu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+select_tract_Callback(hObject,eventdata,handles)
+
+
+% --------------------------------------------------------------------
+function load_surface_menu_Callback(hObject, eventdata, handles)
+% hObject    handle to load_surface_menu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+select_muscle_Callback(hObject,eventdata,handles)
+
+% --------------------------------------------------------------------
+function load_apo_menu_Callback(hObject, eventdata, handles)
+% hObject    handle to load_apo_menu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+select_apo_Callback(hObject,eventdata,handles)
+
+
+
+function max_fibres_Callback(hObject, eventdata, handles)
+% hObject    handle to max_fibres (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of max_fibres as text
+%        str2double(get(hObject,'String')) returns contents of max_fibres as a double
+
+max_fib = str2double(get(hObject,'String'));
+if isnan(max_fib) || max_fib < 0
+    set(hObject,'String','Inf')
+end
+
+
+% --- Executes during object creation, after setting all properties.
+function max_fibres_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to max_fibres (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
