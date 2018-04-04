@@ -50,9 +50,9 @@ if nargin ~= 3
     error('Wrong number of input arguments. Usage is correct_bvec(DTI_filename,old_bvec_filename,new_bvec_filename)')
 end
 p = inputParser;
-addRequired(p,'DTI_filename',@(x) ~isempty(strfind(x,'.nii.gz')))
-addRequired(p,'old_bvec_filename',@(x) ~isempty(strfind(x,'.bvec')))
-addRequired(p,'new_bvec_filename',@(x) ~isempty(strfind(x,'.bvec')))
+addRequired(p,'DTI_filename',@(x) contains(x,'.nii'))
+addRequired(p,'old_bvec_filename',@(x) contains(x,'.bvec'))
+addRequired(p,'new_bvec_filename',@(x) contains(x,'.bvec'))
 parse(p,DTI_filename,old_bvec_filename,new_bvec_filename)
 
 

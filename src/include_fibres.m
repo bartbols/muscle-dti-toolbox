@@ -47,8 +47,9 @@ function [incl,settings,pre_selected] = include_fibres( DTItracts,varargin )
 %                selected fibre to be included. Default: 10 mm
 %
 % OUTPUT:
-% excl        : list of fibre indices excluded based on the selected exclusion
-%               criteria.
+% incl        : list of fibre indices included based on the selected criteria.
+% settings    :
+% pre_selected:
 
 p = inputParser;
 addRequired(p,'DTItracts')

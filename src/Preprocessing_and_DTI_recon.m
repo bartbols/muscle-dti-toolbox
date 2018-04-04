@@ -214,21 +214,40 @@ if isempty(F{strcmp(F(:,1),'SRC'),2})
 %    No name for the src-file is provided. Use name of DTI file but change
 %    extension to .src.gz
     [path,file,ext] = fileparts(F{strcmp(F(:,1),'DTI'),2});
-    F{strcmp(F(:,1),'SRC'),2} = fullfile(F{strcmp(F(:,1),'ResultsPath'),2},[file(1:end-4) app app2 '.src.gz']);
+    if strcmp(ext,'.nii')
+        F{strcmp(F(:,1),'SRC'),2} = fullfile(F{strcmp(F(:,1),'ResultsPath'),2},[file app app2 '.src.gz']);
+    elseif strcmp(ext,'.gz')
+        F{strcmp(F(:,1),'SRC'),2} = fullfile(F{strcmp(F(:,1),'ResultsPath'),2},[file(1:end-4) app app2 '.src.gz']);
+    else
+        error('Unknown extension %s',ext)
+    end
+        
 end  
  
 if isempty(F{strcmp(F(:,1),'FIB'),2})
 %    No name for the fib-file is provided. Use name of DTI file but change
 %    extension to .fib.gz
     [path,file,ext] = fileparts(F{strcmp(F(:,1),'DTI'),2});
-    F{strcmp(F(:,1),'FIB'),2} = fullfile(ResultsPath,[file(1:end-4) app app2 '.fib.gz']);
+    if strcmp(ext,'.nii')
+        F{strcmp(F(:,1),'FIB'),2} = fullfile(F{strcmp(F(:,1),'ResultsPath'),2},[file app app2 '.fib.gz']);
+    elseif strcmp(ext,'.gz')
+        F{strcmp(F(:,1),'FIB'),2} = fullfile(F{strcmp(F(:,1),'ResultsPath'),2},[file(1:end-4) app app2 '.fib.gz']);
+    else
+        error('Unknown extension %s',ext)
+    end
 end  
 
 % Put the filenames in a structure
 filename.DTI_raw = F{strcmp(F(:,1),'DTI'),2};
 if FilterFlag == true
     [path,file,ext] = fileparts(F{strcmp(F(:,1),'DTI'),2});
-    filename.DTI_filt = fullfile(ResultsPath,[file(1:end-4) app '.nii.gz']);
+    if strcmp(ext,'.nii')
+        filename.DTI_filt = fullfile(ResultsPath,[file app '.nii.gz']);
+    elseif strcmp(ext,'.gz')
+        filename.DTI_filt = fullfile(ResultsPath,[file(1:end-4) app '.nii.gz']);
+    else
+        error('Unknown extension %s',ext)
+    end
 else
     filename.DTI_filt = [];
 end

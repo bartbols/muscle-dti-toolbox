@@ -176,8 +176,14 @@ try
     end
     
     if isempty(p.Results.MaskPrefix)
-        [~,tmp] = fileparts(DTI_filename);
-        MaskPrefix = tmp(1:end-4);
+        [~,tmp,ext] = fileparts(DTI_filename);
+        if strcmp(ext,'.nii')
+            MaskPrefix = tmp;
+        elseif strcmp(ext,'.gz')
+            MaskPrefix = tmp(1:end-4);
+        else
+            error('Unknown file format %s',ext)
+        end
     else
         MaskPrefix = p.Results.MaskPrefix;
     end
