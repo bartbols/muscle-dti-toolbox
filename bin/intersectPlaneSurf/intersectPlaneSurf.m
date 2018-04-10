@@ -131,7 +131,10 @@ while ~isempty(segment_start)
         end
     end
 end
-
+if exist('lin','var')==0
+    % no intersection was found. Return a NaN;
+    lin{1} = NaN(3,1);
+end
 if nargout==0 % if no output is wanted, then visualize the final situation :)
     fig=patch(fv);
     set(fig,'FaceColor',[.8 .8 .8],'EdgeColor','none');

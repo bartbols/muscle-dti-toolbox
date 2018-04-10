@@ -22,7 +22,7 @@ function varargout = FibreInspecter(varargin)
 
 % Edit the above text to modify the response to help FibreInspecter
 
-% Last Modified by GUIDE v2.5 04-Apr-2018 18:45:20
+% Last Modified by GUIDE v2.5 10-Apr-2018 10:04:46
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -61,6 +61,7 @@ set(gcf,'MenuBar','none','ToolBar','figure')
 axes(handles.axes3D)
 axis equal vis3d
 view(-40,5)
+
 % UIWAIT makes FibreInspecter wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
 
@@ -134,7 +135,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-
 % --- Executes on button press in select_tract.
 function select_tract_Callback(hObject, eventdata, handles)
 % hObject    handle to select_tract (see GCBO)
@@ -177,6 +177,17 @@ else
     set(handles.ext,'Value',0,'Enable','off')
     set(handles.raw,'Value',1,'Enable','on')
 end
+% Add some fields if they don't exist yet.
+if ~isfield(handles.D,'ang') && isfield(handles.D,'endpoints_dir')
+    handles.D.ang = acosd(sum(squeeze(handles.D.endpoints_dir(:,1,:)) .* squeeze(handles.D.endpoints_dir(:,2,:)),2));
+end
+if isfield(handles.D,'ext') && ~isfield(handles.D,'abs_ext')
+    handles.D.abs_ext = nansum(handles.D.ext,2);
+end
+if isfield(handles.D,'penangle') && ~isfield(handles.D,'pennation')
+    handles.D.pennation = nanmean(handles.D.penangle,2);
+end
+
 guidata(hObject,handles);
 update_tracts_Callback(hObject, eventdata, handles)
 
@@ -324,44 +335,33 @@ function update_tracts_Callback(hObject, eventdata, handles)
 % hObject    handle to update_tracts (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+% Update the tracts and histograms
 threshold_names = {'pct_ext','abs_ext','fibrelength','pennation','curvature'...
     'ang','length_mm','fa','md','lambda1','lambda2','lambda3'};
 nT = length(threshold_names);
 
 axes(handles.axes3D)
-% Update the tracts
 if ~isempty(handles.D)
     hold on
     % Get selection from table
-    if strcmp(hObject.Tag,'select_tract') || strcmp(hObject.Tag,'reset_thresholds')
-        % New tracts were loaded. Display all values and automatically set
-        % the thresholds.
-        set(findobj(gcf,'Tag','max_fibres'),'String',int2str(size(handles.D.fibindex,1)))
-        if ~isfield(handles.D,'ang') && isfield(handles.D,'endpoints_dir')
-            handles.D.ang = acosd(sum(squeeze(handles.D.endpoints_dir(:,1,:)) .* squeeze(handles.D.endpoints_dir(:,2,:)),2));
-        end
-        if isfield(handles.D,'ext') && ~isfield(handles.D,'abs_ext')
-            handles.D.abs_ext = nansum(handles.D.ext,2);
-        end
-        if isfield(handles.D,'penangle') && ~isfield(handles.D,'pennation')
-            handles.D.pennation = nanmean(handles.D.penangle,2);
-        end
-        
-        D = struct2cell(handles.D);
-        F = fieldnames(handles.D);
-        % Set up the thresholds based on the available fields and
+    if strcmp(hObject.Tag,'reset_thresholds')
+        % Reset the thresholds to the default values.
+        % Set up the default thresholds
         thresholds = num2cell(NaN(nT,2));
         for t = 1 : nT
-            idx = find(strcmp(threshold_names(t),F));
-            if isempty(idx);continue;end
-            
-            if any(strcmp(threshold_names(t),{'fa','md','lambda1','lambda2','lambda3'}))
-                thresholds{t,1} = floor(min(D{idx}*100))/100;
-                thresholds{t,2} = ceil(max(D{idx}*100))/100;
-                
-            else
-                thresholds{t,1} = floor(min(D{idx}));
-                thresholds{t,2} = ceil(max(D{idx}));
+            if strcmp(threshold_names(t),'fa')
+                thresholds{t,1} = 0;
+                thresholds{t,2} = 1;
+            elseif any(strcmp(threshold_names(t),{'md','lambda1','lambda2','lambda3'}))
+                thresholds{t,1} = 0;
+                thresholds{t,2} = Inf;
+            elseif any(strcmp(threshold_names(t),{'pct_ext','abs_ext','fibrelength','pennation','curvature','length_mm'}))
+                thresholds{t,1} = 0;
+                thresholds{t,2} = Inf;
+            elseif  strcmp(threshold_names(t),'ang')
+                thresholds{t,1} = 0;
+                thresholds{t,2} = 180;
             end
         end
         handles.threshold_table.Data = thresholds;
@@ -380,7 +380,7 @@ if ~isempty(handles.D)
     is_selected = is_from_apo_to_mus;
     
     D = struct2cell(handles.D);
-    F = fieldnames(handles.D);  
+    F = fieldnames(handles.D);
     for t = 1 : nT
         idx = find(strcmp(threshold_names(t),F));
         if isempty(idx);continue;end
@@ -782,3 +782,4 @@ function max_fibres_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+

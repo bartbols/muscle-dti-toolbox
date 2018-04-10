@@ -37,13 +37,14 @@ label_number = p.Results.label_number;
 %%
 % If multiple labels are present in the mask, make a new mask with only the
 % selected label in it.
+tic
 M = load_untouch_nii(mask);
 if isempty(label_number)
-    fprintf('Creating aponeurosis model of all non-zero labels in %s...',mask)
+    fprintf('Creating aponeurosis model of all non-zero labels in %s...\n',mask)
     % Set all non-zero voxels to 1.
     M.img = cast(M.img ~= 0,'like',M.img);
 else 
-    fprintf('Creating aponeurosis model of label %d in %s...',label_number,mask)
+    fprintf('Creating aponeurosis model of label %d in %s...\n',label_number,mask)
     % Select voxels within the selected label.
     M.img = cast(M.img == label_number,'like',M.img);
 end
@@ -62,13 +63,10 @@ end
 % delete(fullfile(tempdir,'mask.nii.gz'))
 
 % Calculate point cloud with all voxel locations
-if isempty(label_number)
+% if isempty(label_number)
 %     [I,J,K] = ind2sub(mask.hdr.dime.dim(2:4),find(mask.img~=0));
 %     [I,J,K] = ind2sub(mask.hdr.dime.dim(2:4),find(mask.img>=0.5));
-    [I,J,K] = ind2sub(M.hdr.dime.dim(2:4),find(M.img~=0));
-% else
-%     [I,J,K] = ind2sub(mask.hdr.dime.dim(2:4),find(mask.img==label_number));
-end
+[I,J,K] = ind2sub(M.hdr.dime.dim(2:4),find(M.img~=0));
 
 % Transform to global coordinates using the transformation in the header of
 % the mask image.
@@ -111,7 +109,8 @@ fprintf('Aponeurosis model written to %s.\n',model_name)
 if nargout == 1
     varargout{1} = model;
 end
-
+t_elapsed = toc;
+fprintf('It took %.2f seconds to create all models.\n',t_elapsed)
 
 end
 

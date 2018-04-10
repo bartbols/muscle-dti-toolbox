@@ -19,6 +19,7 @@ function [ DTItracts, StopFlag] = TrackFibres( filename,TrackSettings,varargin )
 %    - ROA  : filename of the region of avoidance file
 %    - ROA2 : filename of second region of avoidance file
 %    - TER  : filename of terminative region file
+%    - TER2 : filename of second terminative region file
 %
 %  2) The struct 'TrackSettings' that contains the following fields:
 %    Required fields:
@@ -303,7 +304,7 @@ if isfield(filename,'TER')
         if isfield(filename,'TER2')
             fprintf('%-20s: ','TER2: ')
             fprintf('%s\n', filename.TER2)
-            if exist(filename.TER,'file') ~= 2
+            if exist(filename.TER2,'file') ~= 2
                 fprintf('TER2 file does not exist. Only TER is used.\n')
                 CommandTxt = horzcat(CommandTxt,[' --ter='    filename.TER]);
             else
@@ -318,8 +319,23 @@ if isfield(filename,'TER')
                 if sign(TER2.hdr.hist.srow_y(2)) ~= sign(TER.hdr.hist.srow_y(2))
                     I2 = flip(I2,2);
                 end
+                if isfield(filename,'TER3')
+                    %  Add third region of termination
+                    TER3 = load_untouch_nii(filename.TER3);
+                    I3 = TER3.img;
+                    if sign(TER3.hdr.hist.srow_x(1)) ~= sign(TER.hdr.hist.srow_x(1))
+                        I3 = flip(I3,1);
+                    end
+                    if sign(TER3.hdr.hist.srow_y(2)) ~= sign(TER.hdr.hist.srow_y(2))
+                        I3 = flip(I3,2);
+                    end
+                else
+                    I3 = cast(zeros(size(I1)),'like',I1);
+                end
+                % Write the combined masks as a new file, which will be
+                % used by DSI studio for fibre tracking.
                 TER_comb = TER;
-                TER_comb.img = cast(I1 | I2,'like',TER.img);
+                TER_comb.img = cast(I1 | I2 | I3,'like',TER.img);
                 char_list = char(['a':'z' '0':'9']) ;
                 fname_TER2 = fullfile(tempdir,['TER_combined_' char_list(ceil(length(char_list)*rand(1,8))) '.nii.gz']);
                 save_untouch_nii(TER_comb,fname_TER2)
