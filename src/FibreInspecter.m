@@ -59,6 +59,7 @@ guidata(hObject, handles);
 
 set(gcf,'MenuBar','none','ToolBar','figure')
 axes(handles.axes3D)
+hold on
 axis equal vis3d
 view(-40,5)
 
@@ -341,13 +342,10 @@ threshold_names = {'pct_ext','abs_ext','fibrelength','pennation','curvature'...
     'ang','length_mm','fa','md','lambda1','lambda2','lambda3'};
 nT = length(threshold_names);
 
-axes(handles.axes3D)
 if ~isempty(handles.D)
-    hold on
     % Get selection from table
     if strcmp(hObject.Tag,'reset_thresholds')
         % Reset the thresholds to the default values.
-        % Set up the default thresholds
         thresholds = num2cell(NaN(nT,2));
         for t = 1 : nT
             if strcmp(threshold_names(t),'fa')
@@ -408,6 +406,7 @@ if ~isempty(handles.D)
         nSel3D,nSel,nSel/nFib*100))
     
     if get(handles.poly,'Value')
+        axes(handles.axes3D)
         % Plot the polynomial fitted tracts, including extrapolations
         PlotX = [];PlotY = [];PlotZ = [];
         if isfield(handles.D,'PolyCoeff')

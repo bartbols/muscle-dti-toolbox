@@ -146,7 +146,10 @@ try
     if ~isempty(mask)
         % Load the mask
         M = load_untouch_nii(mask);
-        if ~isempty(label_number)
+        if isempty(label_number)
+            % Use all non-zero voxels
+            M.img = cast(M.img ~= 0,'like',M.img);
+        else
             % Extract the selected label from the mask
             M.img = cast(M.img == label_number,'like',M.img);
         end
@@ -159,7 +162,6 @@ try
         % Save the mask in the temporary working folder.
         mask = fullfile(tmpdir,'mask.nii.gz');
         save_untouch_nii(M,mask)
-
     end
         
     % Check how many steps there are in the registration

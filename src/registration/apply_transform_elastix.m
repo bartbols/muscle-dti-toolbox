@@ -86,7 +86,30 @@ try
                 if exist(fileparts(filename_out),'dir') ~= 7
                     mkdir(fileparts(filename_out))
                 end
-                movefile(fullfile(tmpdir,'result.nii.gz'),filename_out)
+                
+                if ~isempty(ref_image)
+                    % Reslice to the reference image dimensions
+                    if mask == true
+                        ip = 0; % nearest neighbor interpolation
+                    else
+                        ip = 1; % linear interpolation
+                    end
+                    I = load_untouch_nii(ref_image);
+                    if I.hdr.dime.dim(1) > 3
+                        % Image has more than 3 dimensions, which Convert3D
+                        % cannot handle. Extract a 3D stack and use that as
+                        % the reference image.
+                        extract_3Dfrom4D(I,fullfile(tmpdir,'ref_image.nii.gz'),1);
+                        ref_image = fullfile(tmpdir,'ref_image.nii.gz');
+                    end
+                    
+                    c3d_cmd = sprintf('c3d -int %d %s %s -reslice-identity -o %s',...
+                        ip,ref_image,fullfile(tmpdir,'result.nii.gz'),filename_out);
+                    system(c3d_cmd);
+                else
+                    movefile(fullfile(tmpdir,'result.nii.gz'),filename_out)
+                end
+                
                 fprintf('Transformed file saved as %s.\n',filename_out)
             elseif img_in.hdr.dime.dim(1) == 4
                 % Image is 4D, which transformix cannot handle. Transform each 3D

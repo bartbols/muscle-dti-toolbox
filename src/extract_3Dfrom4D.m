@@ -19,7 +19,15 @@ function filename_out = extract_3Dfrom4D( filename_4D,filename_3D,i )
 
 
 % Load the 4D data
-nii4D = load_untouch_nii(filename_4D);   % extract image & header
+if ~isstruct(filename_4D)
+    % Filename of NIfTI file is provided as input. Load the file.
+    nii4D = load_untouch_nii(filename_4D);   % extract image & header
+else
+    % NIfTI structure is provided as input.
+    nii4D = filename_4D;
+    filename_4D = [nii4D.fileprefix '.nii.gz'];
+end
+
 if nii4D.hdr.dime.dim(1) ~= 4
     error('Input image is not 4D.')
 end
