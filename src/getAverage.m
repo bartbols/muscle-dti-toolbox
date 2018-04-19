@@ -1,5 +1,20 @@
 function [mean_value,median_value,SD_value,vars] = getAverage( DTItracts,varargin )
 %GETAVERAGE Calculates the average value of the variables in DTItracts.
+%Several options can be provided to select fibres.
+%
+%
+% Bart Bolsterlee, Neuroscience Research Australia (NeuRA)
+% February 2017
+%
+% ----------------- USAGE ----------------- 
+% [mean_value,median_value,SD_value,vars] = getAverage(DTItracts,varargin)
+% 
+% ----------------- INPUT ----------------- 
+% - DTItracts : a structure array (or a MAT-filename) containing the DTI tracts.
+%
+% Optional inputs, provided as 'parameter',<value> pairs:
+% selection 
+
 
 p = inputParser;
 addRequired(p,'DTItracts')
@@ -42,8 +57,14 @@ if ~isstruct(DTItracts)
     end
 end
 
+% Check if a custom selection was provided
 N = size(DTItracts.fibindex,1);
-if isempty(selection) && isfield(DTItracts,'pct_ext')
+if isempty(selection)
+    % Use all fibres
+    selection = 1 : N;
+end
+
+if isfield(DTItracts,'pct_ext')
     % No custom selection was provided. Check if inclusion thresholds were
     % provided.
     if isempty(pct_threshold);pct_threshold = +Inf;end
@@ -60,7 +81,8 @@ if isempty(selection) && isfield(DTItracts,'pct_ext')
     % The angle between endpoint slopes is usually not saved, so needs to
     % be calculated now.
     if ~isfield(DTItracts,'ang') && isfield(DTItracts,'endpoints_dir')
-        DTItracts.ang = acosd(sum(squeeze(DTItracts.endpoints_dir(:,1,:)) .* squeeze(DTItracts.endpoints_dir(:,2,:)),2));
+        DTItracts.ang = acosd(sum(squeeze(DTItracts.endpoints_dir(:,1,:)) .*...
+                                  squeeze(DTItracts.endpoints_dir(:,2,:)),2));
     end
     % Add pennation angle as single-column vectors (mean pennation and
     % pennation at endpoint 1 and 2).
@@ -75,27 +97,24 @@ if isempty(selection) && isfield(DTItracts,'pct_ext')
     end
     
     % Select all fibres between the thresholds
-    is_within_tresholds = DTItracts.pct_ext < pct_threshold & ...
-        DTItracts.abs_ext       <= mm_threshold & ...
-        DTItracts.fibrelength   >= min_length & ...
-        DTItracts.fibrelength   <= max_length & ...
-        DTItracts.curvature     >= min_curv & ...
-        DTItracts.curvature     <= max_curv & ...
-        DTItracts.ang           >= min_ang & ...
-        DTItracts.ang           <= max_ang & ...
-        DTItracts.pennation     >= min_pennation & ...
-        DTItracts.pennation     <= max_pennation;
+    is_within_tresholds = DTItracts.pct_ext(selection) < pct_threshold & ...
+        DTItracts.abs_ext(selection)       <= mm_threshold & ...
+        DTItracts.fibrelength(selection)   >= min_length & ...
+        DTItracts.fibrelength(selection)   <= max_length & ...
+        DTItracts.curvature(selection)     >= min_curv & ...
+        DTItracts.curvature(selection)     <= max_curv & ...
+        DTItracts.ang(selection)           >= min_ang & ...
+        DTItracts.ang(selection)           <= max_ang & ...
+        DTItracts.pennation(selection)     >= min_pennation & ...
+        DTItracts.pennation(selection)     <= max_pennation;
     
     % Only include fibres that run from the aponeurosis to the muscle surface
     is_from_apo_to_mus = true(size(is_within_tresholds));
     if apo_to_mus == true && any(DTItracts.attach_type(:) == 2)
-        is_from_apo_to_mus = DTItracts.attach_type(:,1) ~= DTItracts.attach_type(:,2);
+        is_from_apo_to_mus = DTItracts.attach_type(selection,1) ~= DTItracts.attach_type(selection,2);
     end
-    selection = find(is_within_tresholds & is_from_apo_to_mus);
-    
-else
-    % Use all fibres
-    selection = 1 : N;
+    % Remove the excluded fibres from the list of selected fibres.
+    selection = selection(is_within_tresholds & is_from_apo_to_mus);
 end
 
 if isempty(vars)

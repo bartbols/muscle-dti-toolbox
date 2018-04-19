@@ -81,7 +81,7 @@ function filename = MakeSurfaceAndMasks(segm_filename, DTI_filename, varargin )
 %% Check input arguments
 p = inputParser;
 addRequired(p,'segm_filename',@(x) contains(x,'.nii'))
-addRequired(p,'DTI_filename',@(x) contains(x,'.nii'))
+addRequired(p,'DTI_filename') %,@(x) contains(x,'.nii'))
 addParameter(p,'LabelNumbers',[],@isnumeric)
 addParameter(p,'LabelNames',[],@(x) assert(ischar(x) || iscell(x)))
 addParameter(p,'MaskPrefix',[],@ischar)
@@ -207,11 +207,7 @@ try
     % Now all labels have been confirmed to exist, create mask files and
     % a surface file for each selected label.
     
-    % Extract a 3D stack from the 4D DTI image to be used by convert3D
-    % (which can't handle 4D date) to resample the mask from anatomical
-    % image dimensions to DTI image dimensions. This only needs to be done
-    % once for all labels, so that's why it's placed outside the loop.
-    extract_3Dfrom4D(DTI_filename,fullfile(tmpdir,'DTI_3D.nii.gz'),1);
+    
     c = 0;
     for CurrentIdx = idxToProcess'
         c = c + 1;
@@ -221,10 +217,7 @@ try
         fprintf('Processing label %d (%s)...\n\n',CurrentLabelNr,CurrentLabelName);
         
         % ------------- MASK RESAMPLING --------
-        % Load the DTI data. The masks will be resampled to the resolution of the
-        % DTI scan using c3d.
-        DTI_data = load_untouch_nii(DTI_filename);
-        siz = DTI_data.hdr.dime.dim(2:4);
+%         siz = DTI_data.hdr.dime.dim(2:4);
         
         % Create a new, temporary file with only the selected label.
         mask     = label_img;
@@ -333,6 +326,17 @@ try
 %                 fullfile(tmpdir,'mask_resampled.nii.gz'));
 %             [status,cmdout] = system(commandTxt);
 % -------------------------------------------------------------------------
+            if c == 1 && MakeMasks == true
+                % Load the DTI data. The masks will be resampled to the resolution of the
+                % DTI scan using c3d.
+                DTI_data = load_untouch_nii(DTI_filename);
+
+                % Extract a 3D stack from the 4D DTI image to be used by convert3D
+                % (which can't handle 4D date) to resample the mask from anatomical
+                % image dimensions to DTI image dimensions.
+                extract_3Dfrom4D(DTI_filename,fullfile(tmpdir,'DTI_3D.nii.gz'),1);
+            end
+
             % Resample mask to DTI dimensions using the -reslice-identity
             % command in convert3D, which resamples an image to the
             % dimensions of a reference image.
