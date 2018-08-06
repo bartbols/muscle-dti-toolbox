@@ -305,7 +305,7 @@ if isfield(filename,'TER')
             fprintf('%-20s: ','TER2: ')
             fprintf('%s\n', filename.TER2)
             if exist(filename.TER2,'file') ~= 2
-                fprintf('TER2 file does not exist. Only TER is used.\n')
+                warning('TER2 file does not exist. Only TER is used.\n')
                 CommandTxt = horzcat(CommandTxt,[' --ter='    filename.TER]);
             else
                 % Combine TER and TER2 into one new mask.

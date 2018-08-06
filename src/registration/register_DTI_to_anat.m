@@ -199,7 +199,11 @@ try
         
         % Load the result and put into dti_reg_data
         result = load_untouch_nii(fullfile(tmpdir,'result.nii.gz'));
-        dti_reg_data.img(:,:,:,k) = result.img;
+        % Correct the intensity scale of the result image because
+        % elastix/transformix set the scl_slope property to 1.
+        int_scale = (result.hdr.dime.scl_slope / dti_reg_data.hdr.dime.scl_slope);
+        dti_reg_data.img(:,:,:,k) = cast(single(result.img) * int_scale,...
+            'like',dti_reg_data.img);
         
     end
     % Save the registered DTI data

@@ -84,6 +84,7 @@ addParameter(p,'ToWrite','poly',@(x)contains(x,{'poly','raw','trunc'},'IgnoreCas
 addParameter(p,'ColorData',default_clist,@(x) iscell(x)||ischar(x))
 addParameter(p,'ParaView',false,@(x) islogical(x)||x==0||x==1)
 addParameter(p,'Title','Tract data from MATLAB',@(x) ischar(x))
+addParameter(p,'max_fibres',[])
 parse(p,DTItracts,vtk_filename,varargin{:});
 
 pct_threshold = p.Results.pct_threshold;
@@ -93,6 +94,7 @@ towrite       = p.Results.ToWrite;
 color_list    = p.Results.ColorData;
 ParaView      = p.Results.ParaView;
 title_txt     = p.Results.Title;
+max_fibres    = p.Results.max_fibres;
 
 if ischar(color_list)
     color_list = cellstr(color_list);
@@ -149,6 +151,13 @@ for d = 1 : nFiles
         SEL{d}(nansum(DTItracts(d).ext(SEL{d},:),2) > mm_threshold) = [];
     end
     
+    % Randomly select fibres if the maximum number of fibres is smaller
+    % than the current selection
+    if ~isempty(max_fibres)
+        if length(SEL{d}) > max_fibres
+            SEL{d} = SEL{d}(randperm(length(SEL{d}),max_fibres));
+        end
+    end    
     fprintf('A total of %d fibres (%.1f%% of total) are included for DTItracts(%d).\n',...
         numel(SEL{d}),...
         numel(SEL{d})/size(DTItracts(d).fibindex,1)*100,...

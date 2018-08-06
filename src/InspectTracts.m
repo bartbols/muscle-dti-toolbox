@@ -49,6 +49,7 @@ function varargout = InspectTracts(varargin)
 % - max_fibres    : maximum number of fibre to display. The number of
 %                   fibres is larger than max_fibres, fibres will be 
 %                   randomly selected.
+% - ShowLegend    : True/false. Add a legend to the figure. Default: true.
 %
 % ----------------- OUTPUT -----------------
 % handles : handles to the plot objects
@@ -93,6 +94,7 @@ addParameter(p,'fraction',1,@(x) validateattributes(x,{'numeric'},{'scalar','>',
 addParameter(p,'pct_threshold',[],@(x) isscalar(x) || isempty(x))
 addParameter(p,'mm_threshold',[],@(x) isscalar(x) || isempty(x))
 addParameter(p,'max_fibres',[],@(x) isscalar(x) || isempty(x))
+addParameter(p,'ShowLegend',true,@(x) x==0 || x==1 || islogical(x) )
 parse(p,varargin{:})
 
 ToPlot          = p.Results.ToPlot;
@@ -117,6 +119,7 @@ aponeurosisColor     = p.Results.aponeurosisColor;
 aponeurosisAlpha     = p.Results.aponeurosisAlpha;
 aponeurosisEdgeColor = p.Results.aponeurosisEdgeColor;
 aponeurosisEdgeAlpha = p.Results.aponeurosisEdgeAlpha;
+ShowLegend           = p.Results.ShowLegend;
 
 if ischar(ToPlot);ToPlot={ToPlot};end
 if ischar(Color);Color={Color};end
@@ -359,7 +362,9 @@ else
     titleTxt = '';
 end
 title(titleTxt,'Interpreter','None')
-legend(handles,legendTxt)
+if ShowLegend == true
+    legend(handles,legendTxt)
+end
 view(-37.5,30)
 axis equal off
 % if PlotStats == true
@@ -367,8 +372,8 @@ axis equal off
 % end
 
 % Add some lights
-lightangle(-37.5,30)
-lightangle(-37.5+180,30)
+% lightangle(-37.5,30)
+% lightangle(-37.5+180,30)
 
 % Set the 'hold' state back to the same value as at the start of the
 % function.

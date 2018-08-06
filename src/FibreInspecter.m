@@ -61,6 +61,7 @@ set(gcf,'MenuBar','none','ToolBar','figure')
 axes(handles.axes3D)
 hold on
 axis equal vis3d
+fcw(gcf)
 view(-40,5)
 
 % UIWAIT makes FibreInspecter wait for user response (see UIRESUME)

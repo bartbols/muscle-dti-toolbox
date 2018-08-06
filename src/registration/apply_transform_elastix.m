@@ -167,6 +167,7 @@ try
 catch ME
     % remove temporary working directory, then throw error message
     rmdir(tmpdir,'s')
+    getReport(ME)
     error(ME.message)
 end
 
