@@ -19,12 +19,16 @@ nFib = length(PolyCoeff);
 hwait = waitbar(0,sprintf('Calculating curvature for %d fibres',nFib),...
     'Name','Progress bar CalcCurvature');
 
-
+persistent ShowWarningMex
+if isempty(ShowWarningMex);ShowWarningMex = true;end
 if exist('CalcKappa_mex','file') == 3
     use_mex = true;
 else
     use_mex = false;
-    warning('The MEX-file CalcKappa_mex is not available on the MATLAB path. Curvature calculation may be slow.')
+    if ShowWarningMex == true
+        warning('The MEX-file CalcKappa_mex is not available on the MATLAB path. Curvature calculation may be slow.')
+        ShowWarningMex = false; % only show the warning message once
+    end
 end
 tic
 curvature = NaN(nFib,1);

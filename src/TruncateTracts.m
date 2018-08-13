@@ -149,7 +149,12 @@ for fibnr =  1:nFib
         % Select the longest continuous section inside the muscle surface
         fibindex_trunc(fibnr,1) = p(startIndex(maxIndex));
         fibindex_trunc(fibnr,2) = p(endIndex(maxIndex));
-        length_trunc(fibnr)     = (nSteps-1) * DTItracts.TrackSettings.StepSize;
+
+        % Calculate stepsize as the distance between the first and
+        % second tract points. It is assumed to fibre tracking was
+        % performed with a constant stepsize.
+        stepsize = norm(DTItracts.tracts_xyz(1:3,2)-DTItracts.tracts_xyz(1:3,1));
+        length_trunc(fibnr)     = (nSteps-1) * stepsize;
     end
     % Make sure the startpoint (column 1 in fibindex_trunc) has a lower z-value than
     % the endpoint (column2 in fibindex_trunc).

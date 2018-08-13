@@ -522,21 +522,9 @@ else
     % of fibers. The first column contains the index of the first point in
     % fiber m, the second column the index of the last point. This
     % information is also stored in 'length', but I find this a more
-    % convenient way to store the tracts.
-    fibindex(1,1) = 1;
-    fibindex(1,2) = DTItracts.length(1);
-    for fibnr = 2:length(DTItracts.length)
-        fibindex(fibnr,1) = fibindex(fibnr-1,2)+1;
-        fibindex(fibnr,2) = sum(DTItracts.length(1:fibnr));
-        %     if fibnr == 1
-        %         p_start = 1;
-        %     else
-        %         p_start = DTItracts.length_summed(fibnr-1)+1;
-        %     end
-        %     p_end = DTItracts.length_summed(fibnr);
-    end
-    
-    DTItracts.fibindex = fibindex;
+    % convenient way to store the tracts.    
+    DTItracts.fibindex = [[1;cumsum(DTItracts.length(1:end-1))+1] ...
+                          cumsum(DTItracts.length)];
     
     % Convert tract points from voxel coordinates to global coordinates.
     % Get transformation from voxel to global coordinates from the

@@ -1,4 +1,4 @@
-function [mean_value,median_value,SD_value,vars] = getAverage( DTItracts,varargin )
+function [mean_value,median_value,SD_value,vars,selection] = getAverage( DTItracts,varargin )
 %GETAVERAGE Calculates the average value of the variables in DTItracts.
 %Several options can be provided to select fibres.
 %
@@ -7,13 +7,12 @@ function [mean_value,median_value,SD_value,vars] = getAverage( DTItracts,varargi
 % February 2017
 %
 % ----------------- USAGE ----------------- 
-% [mean_value,median_value,SD_value,vars] = getAverage(DTItracts,varargin)
+% [mean_value,median_value,SD_value,vars,selection] = getAverage(DTItracts,varargin)
 % 
 % ----------------- INPUT ----------------- 
 % - DTItracts : a structure array (or a MAT-filename) containing the DTI tracts.
 %
 % Optional inputs, provided as 'parameter',<value> pairs:
-% selection 
 
 
 p = inputParser;
@@ -29,6 +28,8 @@ addParameter(p,'min_curv',0,@(x) isscalar(x) || isempty(x))
 addParameter(p,'max_curv',Inf,@(x) isscalar(x) || isempty(x))
 addParameter(p,'min_ang',0,@(x) isscalar(x) || isempty(x))
 addParameter(p,'max_ang',180,@(x) isscalar(x) || isempty(x))
+addParameter(p,'max_z',Inf,@(x) isscalar(x) || isempty(x))
+addParameter(p,'min_z',-Inf,@(x) isscalar(x) || isempty(x))
 addParameter(p,'apo_to_mus',true,@(x) islogical(x) || x==0 || x==1)
 addParameter(p,'vars',[],@(x) ischar(x) || iscell(x))
 parse(p,DTItracts,varargin{:})
@@ -46,6 +47,8 @@ max_ang       = p.Results.max_ang;
 vars          = p.Results.vars;
 selection     = p.Results.selection;
 apo_to_mus    = p.Results.apo_to_mus;
+max_z         = p.Results.max_z;
+min_z         = p.Results.min_z;
 
 % Load data if a filename is provided instead of a structure array with the
 % DTItract data
@@ -106,7 +109,9 @@ if isfield(DTItracts,'pct_ext')
         DTItracts.ang(selection)           >= min_ang & ...
         DTItracts.ang(selection)           <= max_ang & ...
         DTItracts.pennation(selection)     >= min_pennation & ...
-        DTItracts.pennation(selection)     <= max_pennation;
+        DTItracts.pennation(selection)     <= max_pennation & ...
+        all(DTItracts.endpoints(selection,:,3)     <= max_z,2) & ...
+        all(DTItracts.endpoints(selection,:,3)     >= min_z,2);
     
     % Only include fibres that run from the aponeurosis to the muscle surface
     is_from_apo_to_mus = true(size(is_within_tresholds));

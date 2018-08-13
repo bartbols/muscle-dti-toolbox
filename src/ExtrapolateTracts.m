@@ -57,11 +57,16 @@ parse(p,DTItracts,SurfModel,varargin{:})
 order       = p.Results.order;
 aponeurosis = p.Results.aponeurosis;
 
+persistent ShowWarningMex
+if isempty(ShowWarningMex);ShowWarningMex = true;end
 if exist('FindNearestT_mex','file') == 3
     use_mex = true;
 else
-    warning('The MEX-file FindNearestT_mex is not available on the MATLAB path. Extrapolation may be slow.')
     use_mex = false;
+    if ShowWarningMex == true
+        warning('The MEX-file FindNearestT_mex is not available on the MATLAB path. Extrapolation may be slow.')
+        ShowWarningMex = false; % only show the warning message once
+    end
 end
 
 %% Read inputs

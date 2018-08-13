@@ -22,7 +22,7 @@ function varargout = FibreInspecter(varargin)
 
 % Edit the above text to modify the response to help FibreInspecter
 
-% Last Modified by GUIDE v2.5 10-Apr-2018 10:04:46
+% Last Modified by GUIDE v2.5 13-Aug-2018 11:07:05
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -61,7 +61,9 @@ set(gcf,'MenuBar','none','ToolBar','figure')
 axes(handles.axes3D)
 hold on
 axis equal vis3d
-fcw(gcf)
+if exist('fcw','file') == 2
+    fcw(gcf)
+end
 view(-40,5)
 
 % UIWAIT makes FibreInspecter wait for user response (see UIRESUME)
@@ -190,6 +192,14 @@ if isfield(handles.D,'penangle') && ~isfield(handles.D,'pennation')
     handles.D.pennation = nanmean(handles.D.penangle,2);
 end
 
+if isfield(handles.D,'incl')
+    set(handles.use_selection,'Enable','on','Value',1)
+else
+    set(handles.use_selection,'Enable','off','Value',0)
+end
+
+if isfield(handles,'VARS');handles = rmfield(handles,'VARS');end
+    
 guidata(hObject,handles);
 update_tracts_Callback(hObject, eventdata, handles)
 
@@ -344,51 +354,56 @@ threshold_names = {'pct_ext','abs_ext','fibrelength','pennation','curvature'...
 nT = length(threshold_names);
 
 if ~isempty(handles.D)
-    % Get selection from table
-    if strcmp(hObject.Tag,'reset_thresholds')
-        % Reset the thresholds to the default values.
-        thresholds = num2cell(NaN(nT,2));
-        for t = 1 : nT
-            if strcmp(threshold_names(t),'fa')
-                thresholds{t,1} = 0;
-                thresholds{t,2} = 1;
-            elseif any(strcmp(threshold_names(t),{'md','lambda1','lambda2','lambda3'}))
-                thresholds{t,1} = 0;
-                thresholds{t,2} = Inf;
-            elseif any(strcmp(threshold_names(t),{'pct_ext','abs_ext','fibrelength','pennation','curvature','length_mm'}))
-                thresholds{t,1} = 0;
-                thresholds{t,2} = Inf;
-            elseif  strcmp(threshold_names(t),'ang')
-                thresholds{t,1} = 0;
-                thresholds{t,2} = 180;
+    if get(findobj(gcf,'Tag','use_selection'),'Value') == 0
+        % Get selection from table
+        if strcmp(hObject.Tag,'reset_thresholds')
+            % Reset the thresholds to the default values.
+            thresholds = num2cell(NaN(nT,2));
+            for t = 1 : nT
+                if strcmp(threshold_names(t),'fa')
+                    thresholds{t,1} = 0;
+                    thresholds{t,2} = 1;
+                elseif any(strcmp(threshold_names(t),{'md','lambda1','lambda2','lambda3'}))
+                    thresholds{t,1} = 0;
+                    thresholds{t,2} = Inf;
+                elseif any(strcmp(threshold_names(t),{'pct_ext','abs_ext','fibrelength','pennation','curvature','length_mm'}))
+                    thresholds{t,1} = 0;
+                    thresholds{t,2} = Inf;
+                elseif  strcmp(threshold_names(t),'ang')
+                    thresholds{t,1} = 0;
+                    thresholds{t,2} = 180;
+                end
             end
+            handles.threshold_table.Data = thresholds;
         end
-        handles.threshold_table.Data = thresholds;
-    end
-    
-    % Get thresholds from the table
-    thresholds = handles.threshold_table.Data;
-    
-    %     if isfield(handles.D,'fibrelength')
-    if get(handles.from_apo_to_mus,'Value')
-        is_from_apo_to_mus = (handles.D.attach_type(:,1) ~= handles.D.attach_type(:,2));
+
+        % Get thresholds from the table
+        thresholds = handles.threshold_table.Data;
+
+        %     if isfield(handles.D,'fibrelength')
+        if get(handles.from_apo_to_mus,'Value')
+            is_from_apo_to_mus = (handles.D.attach_type(:,1) ~= handles.D.attach_type(:,2));
+        else
+            is_from_apo_to_mus = true(size(handles.D.pct_ext,1),1);
+        end
+
+        is_selected = is_from_apo_to_mus;
+
+        D = struct2cell(handles.D);
+        F = fieldnames(handles.D);
+        for t = 1 : nT
+            idx = find(strcmp(threshold_names(t),F));
+            if isempty(idx);continue;end
+            % Only select the fibre included in the currently defined
+            % thresholds
+            is_selected = is_selected & D{idx} >= thresholds{t,1} & D{idx} <= thresholds{t,2};
+        end
+        % Make list of indices with selected fibres
+        selection  = find(is_selected)';
     else
-        is_from_apo_to_mus = true(size(handles.D.pct_ext,1),1);
+        % Use selection stored within the fibre tract file.
+        selection = handles.D.incl;
     end
-    
-    is_selected = is_from_apo_to_mus;
-    
-    D = struct2cell(handles.D);
-    F = fieldnames(handles.D);
-    for t = 1 : nT
-        idx = find(strcmp(threshold_names(t),F));
-        if isempty(idx);continue;end
-        % Only select the fibre included in the currently defined
-        % thresholds
-        is_selected = is_selected & D{idx} >= thresholds{t,1} & D{idx} <= thresholds{t,2};
-    end
-    % Make list of indices with selected fibres
-    selection  = find(is_selected)';
     
     % Check the maximum number of fibres
     max_fibres = str2double(get(findobj(gcf,'Tag','max_fibres'),'String'));
@@ -406,10 +421,26 @@ if ~isempty(handles.D)
     set(handles.Nfibres,'String',sprintf('Displaying %d of %d fibres between the thresholds (%.1f%% of total)',...
         nSel3D,nSel,nSel/nFib*100))
     
+    % Select the color mapping (one color per fibre)
+    if isfield(handles,'VARS') == 1
+        str = get(handles.color_coding,'String');
+        varnr = find(strcmp(str(get(handles.color_coding,'Value')),handles.VARS(:,1)));
+        if isempty(varnr)
+            color_per_fibre = false;
+        else
+            varName = handles.VARS{varnr,4};        
+            colordata  = handles.D.(varName);
+            color_per_fibre = true;
+        end
+    else
+        color_per_fibre = false;
+        set(handles.color_coding,'Value',1)
+    end
+    
     if get(handles.poly,'Value')
         axes(handles.axes3D)
         % Plot the polynomial fitted tracts, including extrapolations
-        PlotX = [];PlotY = [];PlotZ = [];
+        PlotX = [];PlotY = [];PlotZ = [];PlotC = [];
         if isfield(handles.D,'PolyCoeff')
             P = handles.D.PolyCoeff;
         else
@@ -427,16 +458,31 @@ if ~isempty(handles.D)
             PlotX = [PlotX NaN tmpX];
             PlotY = [PlotY NaN tmpY];
             PlotZ = [PlotZ NaN tmpZ];
+            if color_per_fibre == true
+                PlotC = [PlotC ones(1,size(tmpX,2)+1)*colordata(fibnr,:)];
+            end
         end
         if ~isfield(handles,'tracts_poly')
             % Create new handle.
-            handles.tracts_poly = plot3(PlotX(:),PlotY(:),PlotZ(:),...
-                'LineWidth',1,...
-                'Color',get(handles.set_color_poly,'BackgroundColor'));
-        else
-            
+            handles.tracts_poly = patch(PlotX(:),PlotY(:),PlotZ(:),'k',...
+                'FaceColor','none',...
+                'EdgeColor','flat',...
+                'LineWidth',1);
+                
+%                 'Color',get(handles.set_color_poly,'BackgroundColor'));
+        else            
             % Update polynomials.
             set(handles.tracts_poly,'XData',PlotX(:),'YData',PlotY(:),'ZData',PlotZ(:))
+        end
+        % Update fibre colors
+        if color_per_fibre == true
+            set(handles.tracts_poly,'FaceVertexCData',PlotC')
+            delete(get(gca,'Colorbar'))
+            hc = colorbar('Position',[0.02 0.01 0.02 0.6]);
+        else
+            % constant color
+            set(handles.tracts_poly,'FaceVertexCData',repmat(get(handles.set_color_poly,'BackgroundColor'),numel(PlotX),1) )
+            delete(get(gca,'ColorBar'))
         end
     else
         if isfield(handles,'tracts_poly')
@@ -511,9 +557,12 @@ if ~isempty(handles.D)
         '\lambda_1','1e-3 mm^2/s',0.05,'lambda1';...
         '\lambda_2','1e-3 mm^2/s',0.05,'lambda2';...
         '\lambda_3','1e-3 mm^2/s',0.05,'lambda3'};
+    handles.VARS = VARS;
     
     D = struct2cell(handles.D);
     F = fieldnames(handles.D);
+    clear AvailableVarList
+    AvailableVarList{1} = 'Constant color';
     for k = 1 : size(VARS,1)
         % Decide which subplot to display the data in
         eval(sprintf('axes(handles.axes%d);',k))
@@ -530,8 +579,8 @@ if ~isempty(handles.D)
             data = mean(D{idx},2);
             
             % Filter the data to only plot histograms for the selected fibres
-            % (if not selection is provided, histograms for all fibres are
-            % provided)
+            % (if selection is not provided, histograms for all fibres are
+            % displayed)
             data = data(selection);
             
             % Plot a histogram
@@ -544,6 +593,7 @@ if ~isempty(handles.D)
             lims = [min(data)-VARS{k,3} max(data)+VARS{k,3}];
             if isempty(lims);lims = [0 1];end
             set(gca,'XLim',lims)
+            AvailableVarList{end+1} = VARS{k,1};
         end
         set(get(gca,'Title'),'Units','Normalized',...
             'Position',[0.95,0.95],...
@@ -555,6 +605,10 @@ if ~isempty(handles.D)
             set(get(gca,'YLabel'),'String','')
         end
     end
+    
+    % Update the dropdown-menu for fibre color-coding with the list of 
+    % available variables.
+    set(findobj(gcf,'Tag','color_coding'),'String',AvailableVarList)
 end
 
 guidata(hObject, handles);
@@ -696,7 +750,7 @@ for k = 1 : 12
     set(gca,'Visible','off')
 end
 set(handles.Nfibres,'String','')
-
+delete(findobj('Type','Colorbar'))
 guidata(hObject, handles);
 
 
@@ -783,3 +837,35 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
+
+% --- Executes on button press in use_selection.
+function use_selection_Callback(hObject, eventdata, handles)
+% hObject    handle to use_selection (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of use_selection
+
+
+% --- Executes on selection change in color_coding.
+function color_coding_Callback(hObject, eventdata, handles)
+% hObject    handle to color_coding (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns color_coding contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from color_coding
+
+
+
+% --- Executes during object creation, after setting all properties.
+function color_coding_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to color_coding (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
