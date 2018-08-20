@@ -143,7 +143,7 @@ for i = 1 : length(vars)
     
     switch vars{i}
         case 'N_incl'
-            data = N;
+            data = length(selection);
         case 'pct_incl'
             data = length(selection) / N * 100;
             
