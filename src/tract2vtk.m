@@ -36,8 +36,10 @@ function tract2vtk(DTItracts,vtk_filename,varargin)
 %                  if pct_threshold is defined as well)/
 %                  If multiple DTI tracts are provided, selection should be
 %                  a cell with the same dimensions as DTItracts in which
-%                  each element 
-%              
+%                  each element
+% - max_fibres   : maximum number of fibres to write to the vtk-file. If 
+%                  more fibres satisfy the selection criteria, a number of 
+%                  fibres is randomly selected.
 % - ToWrite      : Tract data to be written to vtk-file:
 %                  - 'raw': raw tracts
 %                  - 'trunc': truncated tracts

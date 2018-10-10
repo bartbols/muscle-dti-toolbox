@@ -185,6 +185,10 @@ end
 if ~isfield(handles.D,'ang') && isfield(handles.D,'endpoints_dir')
     handles.D.ang = acosd(sum(squeeze(handles.D.endpoints_dir(:,1,:)) .* squeeze(handles.D.endpoints_dir(:,2,:)),2));
 end
+if ~isfield(handles.D,'length_mm')
+    stepsize = norm(handles.D.tracts_xyz(1:3,1) - handles.D.tracts_xyz(1:3,2));
+    handles.D.length_mm = abs(handles.D.fibindex(:,2) - handles.D.fibindex(:,1)) * stepsize;
+end
 if isfield(handles.D,'ext') && ~isfield(handles.D,'abs_ext')
     handles.D.abs_ext = nansum(handles.D.ext,2);
 end
@@ -197,6 +201,7 @@ if isfield(handles.D,'incl')
 else
     set(handles.use_selection,'Enable','off','Value',0)
 end
+
 
 if isfield(handles,'VARS');handles = rmfield(handles,'VARS');end
     

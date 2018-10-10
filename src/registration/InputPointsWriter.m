@@ -1,23 +1,25 @@
-function InputPointsWriter( filename,points,type )
+function InputPointsWriter( filename,points,varargin )
 %INPUTPOINTSWRITER Write a file with points that can be read by
 %transformix.
 
 
-if nargin <3
-    % type is not defined. Assume that the points are provided as voxel
-    % indices.
-    type = 'index';
-end
-
-if ~any(strcmp({'index','point'},type))
-    error('Invalid input ''type''. ''type'' must either be ''index'' or ''point''.')
-end
+% Read inputs
+p = inputParser;
+addRequired(p,'filename')
+addRequired(p,'points')
+addParameter(p,'type','index',@(x) any(strcmp(x,{'point','index'})))
+addParameter(p,'flip_xy',false,@(x) islogical(x) || x==1 || x==0)
+parse(p,'filename','points',varargin{:})
 
 nPoints = size(points,1);
 
+if p.Results.flip_xy == true
+    points(:,1:2) = -points(:,1:2);
+end
+
 % Write a file with the points in the transformix file format
 fid = fopen(filename,'w');
-fprintf(fid,'%s\n',type);
+fprintf(fid,'%s\n',p.Results.type);
 fprintf(fid,'%d\n',nPoints);
 for k = 1 : nPoints
     fprintf(fid,'%f %f %f\n',points(k,:));

@@ -27,6 +27,7 @@ function varargout = calc_strains(transform_file,filename_EV1,results_path,varar
 % Optional inputs, provided as 'argument',<value> pairs:
 % - mask     : filename of a binary mask. All voxels with value zero in the
 %              mask will be set to zero in the resulting images.
+% - F        : filename or NIfTI struture with deformation gradient tensor.
 %
 % Note:  The data is presented in the NIfTI coordinate system, with x and y
 %        axes flipped relative to the ITK coordinates in which Elastix
@@ -75,7 +76,7 @@ addParameter(p,'F',[])
 parse(p,transform_file,filename_EV1,results_path,varargin{:});
 
 filename.mask    = p.Results.mask;
-F               = p.Results.F;
+F                = p.Results.F;
 
 % Create temporary working directory.
 char_list = char(['a':'z' '0':'9']) ;
@@ -99,7 +100,6 @@ try
     
     EV1 = load_untouch_nii(filename_EV1);
 %     EV1.img(:,:,:,1:2) = -EV1.img(:,:,:,1:2);
-    
 
     if isempty(F)
         % Copy the transform file to the local working directory and modify the
@@ -129,6 +129,11 @@ try
 
         % Load spatial jacobian.
         F     = load_untouch_nii(fullfile(tmpdir,'fullSpatialJacobian.nii.gz'));
+    else
+        if ~isstruct(F)
+            % Filename of spatial jacobian is provided. Load the file.
+            F = load_untouch_nii(F);
+        end
     end
     % Again, flip to NIfTI coordinates.
     % Elastix works in ITK coordinates, which have x and y-axis in opposite
@@ -143,25 +148,22 @@ try
     
     %% Calculate strain tensors
     
-    % This needs to checked. It could also be that F21 = F(:,:,:,4) instead of
-    % F12 = F(:,:,:,4), etc. This will depend on how the values of the jacobian
-    % matrix are stored in the NIfTI file.
+    % The entries of the deformation gradient tensor are stored as follows
+    % in the spatial jacobian that Elastix generates:
     %
-    %     [F11 F12 F13]   [1 4 7]   [dx/dx dx/dy dx/dz]
-    % F = [F21 F22 F23] = [2 5 8] = [dy/dx dy/dy dy/dz]
-    %     [F31 F32 F33]   [3 6 9]   [dz/dx dz/dy dz/dz]
+    %                index in 5th dimension
+    %                        |
+    %                        v
+    %     [F11 F12 F13]   [1 2 3]   [dx/dx dx/dy dx/dz]
+    % F = [F21 F22 F23] = [4 5 6] = [dy/dx dy/dy dy/dz]
+    %     [F31 F32 F33]   [7 8 9]   [dz/dx dz/dy dz/dz]
     %
-%     F11 = F.img(:, :, :, 1,1); F12 = F.img(:, :, :, 1,4); F13 = F.img(:, :, :, 1,7);
-%     F21 = F.img(:, :, :, 1,2); F22 = F.img(:, :, :, 1,5); F23 = F.img(:, :, :, 1,8);
-%     F31 = F.img(:, :, :, 1,3); F32 = F.img(:, :, :, 1,6); F33 = F.img(:, :, :, 1,9);
-%     
-%     % Remove dilatoric component by dividing by the determinant of F.
-%     
+    % 
+%     F11 = F.img(:, :, :, 1,1); F12 = F.img(:, :, :, 1,2); F13 = F.img(:, :, :, 1,3);
+%     F21 = F.img(:, :, :, 1,4); F22 = F.img(:, :, :, 1,5); F23 = F.img(:, :, :, 1,6);
+%     F31 = F.img(:, :, :, 1,7); F32 = F.img(:, :, :, 1,8); F33 = F.img(:, :, :, 1,9);
 %     
 %     % Calculate the Right Cauchy-Green Deformation Tensor as C = F'*F
-%     %     [1 4 7]
-%     % C = [2 5 8]
-%     %     [3 6 9]
 %     C = zeros([imdim 3 3]);
 %     C(:, :, :, 1,1) = F11 .* F11 + F21 .* F21 + F31 .* F31;
 %     C(:, :, :, 2,1) = F12 .* F11 + F22 .* F21 + F32 .* F31;
@@ -174,21 +176,18 @@ try
 %     C(:, :, :, 3,3) = F13 .* F13 + F23 .* F23 + F33 .* F33;
 %     clear F11 F12 F13 F21 F22 F23 F31 F32 F33
     
-    %     % Or the Left Cauchy-Green Deformation Tensor : B = F * F'
-    %     %     [1 4 7]
-    %     % B = [2 5 8]
-    %     %     [3 6 9]
-    %     B = zeros([imdim 3 3]);
-    %     B(:, :, :, 1,1) = F11 .* F11  +  F12 .* F12  +  F13 .* F13;
-    %     B(:, :, :, 2,1) = F21 .* F11  +  F22 .* F12  +  F23 .* F13;
-    %     B(:, :, :, 3,1) = F31 .* F11  +  F32 .* F12  +  F33 .* F13;
-    %     B(:, :, :, 1,2) = F11 .* F21  +  F12 .* F22  +  F13 .* F23;
-    %     B(:, :, :, 2,2) = F21 .* F21  +  F22 .* F22  +  F23 .* F23;
-    %     B(:, :, :, 3,2) = F31 .* F21  +  F32 .* F22  +  F33 .* F23;
-    %     B(:, :, :, 1,3) = F11 .* F31  +  F12 .* F32  +  F13 .* F33;
-    %     B(:, :, :, 2,3) = F21 .* F31  +  F22 .* F32  +  F23 .* F33;
-    %     B(:, :, :, 3,3) = F31 .* F31  +  F32 .* F32  +  F33 .* F33;
-    %     clear F11 F12 F13 F21 F22 F23 F31 F32 F33
+%     % Or the Left Cauchy-Green Deformation Tensor : B = F * F'
+%     B = zeros([imdim 3 3]);
+%     B(:, :, :, 1,1) = F11 .* F11  +  F12 .* F12  +  F13 .* F13;
+%     B(:, :, :, 2,1) = F21 .* F11  +  F22 .* F12  +  F23 .* F13;
+%     B(:, :, :, 3,1) = F31 .* F11  +  F32 .* F12  +  F33 .* F13;
+%     B(:, :, :, 1,2) = F11 .* F21  +  F12 .* F22  +  F13 .* F23;
+%     B(:, :, :, 2,2) = F21 .* F21  +  F22 .* F22  +  F23 .* F23;
+%     B(:, :, :, 3,2) = F31 .* F21  +  F32 .* F22  +  F33 .* F23;
+%     B(:, :, :, 1,3) = F11 .* F31  +  F12 .* F32  +  F13 .* F33;
+%     B(:, :, :, 2,3) = F21 .* F31  +  F22 .* F32  +  F23 .* F33;
+%     B(:, :, :, 3,3) = F31 .* F31  +  F32 .* F32  +  F33 .* F33;
+%     clear F11 F12 F13 F21 F22 F23 F31 F32 F33
     
     
     %% Calculate strain invariants
@@ -222,12 +221,12 @@ try
                 % Calculate the stretch tensor
 %                 U = sqrtm(Cvoxel+eye(3));
                 
-                if isstruct(F)
+%                 if isstruct(F)
                     % Get the deformation gradient (spatial jacobian)
-                    Fvoxel = reshape(squeeze(F.img(i,j,k,:,:)),3,3);
-                else
-                    Fvoxel = F;
-                end
+                Fvoxel = reshape(squeeze(F.img(i,j,k,:,:)),3,3)'; % <-- the transpose is necessary to get the proper orientation of the deformation gradient tensor for a voxel
+%                 else
+%                     Fvoxel = F';
+%                 end
                 
                 detF(i,j,k) = det(Fvoxel);
                 % Remove the dilatoric component by dividing J^(1/3), where

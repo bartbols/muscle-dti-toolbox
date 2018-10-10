@@ -207,7 +207,6 @@ try
     % Now all labels have been confirmed to exist, create mask files and
     % a surface file for each selected label.
     
-    
     c = 0;
     for CurrentIdx = idxToProcess'
         c = c + 1;

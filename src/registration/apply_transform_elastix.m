@@ -107,7 +107,25 @@ try
                         ip,ref_image,fullfile(tmpdir,'result.nii.gz'),filename_out);
                     system(c3d_cmd);
                 else
-                    movefile(fullfile(tmpdir,'result.nii.gz'),filename_out)
+                    % Check if result is zipped or not
+                    tmpname = ls(fullfile(tmpdir,'result.*'));
+                    if endsWith(filename_out,'.nii.gz') && endsWith(tmpname,'.nii')
+                        % Result image is currently not zipped, while a zipped file is
+                        % requested as output.
+                        gzip(fullfile(tmpdir,tmpname))
+                        movefile(fullfile(tmpdir,'result.nii.gz'),jacobian)
+                    elseif endsWith(filename_out,'.nii') && endsWith(tmpname,'.nii.gz')
+                        % Result image is currently zipped, while a unzipped file
+                        % is requested.
+                        gunzip(fullfile(tmpdir,tmpname))
+                        movefile(fullfile(tmpdir,'result.nii'),filename_out)
+                    elseif endsWith(jacobian,'.nii.gz') && endsWith(tmpname,'.nii.gz')
+                        movefile(fullfile(tmpdir,'result.nii.gz'),filename_out)
+                    elseif endsWith(jacobian,'.nii') && endsWith(tmpname,'.nii')
+                        movefile(fullfile(tmpdir,'result.nii'),filename_out)
+                    end    
+                    
+%                     movefile(fullfile(tmpdir,'result.nii.gz'),filename_out)
                 end
                 
                 fprintf('Transformed file saved as %s.\n',filename_out)

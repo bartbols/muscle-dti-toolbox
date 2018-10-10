@@ -56,13 +56,26 @@ function reg_elastix( fixed, moving, parfile,varargin )
 %                          registration.
 % - transform_inv        : filename of the inverse transformation file
 % - initial              : filename of the initial transformation
+% - ref_points_f         : filename of text-file containing reference point
+%                          locations in the fixed image.
+% - ref_points_m         : filename of text-file containing reference point
+%                          locations in the moving image. Points have to be 
+%                          paired with with ref_points_f.
+% - log_file             : filename to which a copy of the log-file will be
+%                          saved.
+
+% Change log:
+% 11/09/2018, BB: Added option to input corresponding points to guide
+%                 registration (ref_points_f and ref_points_m)
+% 11/09/2018, BB: Added log file as output.
+% 
 
 % Read the inputs
 p = inputParser;
 addRequired(p,'fixed',@(x) contains(x,'.nii'))
 addRequired(p,'moving',@(x) contains(x,'.nii'))
 addRequired(p,'parfile',@(x) ischar(x) || iscell(x))
-addParameter(p,'transform_file',[],@(x) ischar(x))
+addParameter(p,'transform_file',[],@(x) ischar(x) || isempty(x))
 addParameter(p,'mask',[],@(x) isempty(x) || contains(x,'.nii') || isnumeric(x) || iscell(x))
 addParameter(p,'mask_m',[],@(x) isempty(x) || contains(x,'.nii') || isnumeric(x) || iscell(x))
 addParameter(p,'foreground_threshold',[],@(x) isscalar(x) || isempty(x))
@@ -75,8 +88,12 @@ addParameter(p,'result_image',[],@(x) contains(x,'.nii'))
 addParameter(p,'jacobian',[],@(x) contains(x,'.nii'))
 addParameter(p,'deformation',[],@(x) contains(x,'.nii'))
 addParameter(p,'dilate_mask',[],@(x) isscalar(x))
-addParameter(p,'transform_inv',[],@(x) ischar(x))
-addParameter(p,'initial',[],@(x) ischar(x))
+addParameter(p,'transform_inv',[],@(x) ischar(x) || isempty(x))
+addParameter(p,'initial',[],@(x) ischar(x) || isempty(x))
+addParameter(p,'ref_points_f',[],@(x) exist(x,'file')==2 || isempty(x))
+addParameter(p,'ref_points_m',[],@(x) exist(x,'file')==2 || isempty(x))
+addParameter(p,'log_file',[],@(x) ischar(x) || isempty(x))
+
 parse(p,fixed, moving, parfile,varargin{:});
 
 mask           = p.Results.mask;
@@ -94,6 +111,14 @@ transform_inv  = p.Results.transform_inv;
 initial        = p.Results.initial;
 deformation    = p.Results.deformation;
 jacobian       = p.Results.jacobian;
+ref_points_f   = p.Results.ref_points_f;
+ref_points_m   = p.Results.ref_points_m;
+log_file       = p.Results.log_file;
+
+
+if xor(isempty(ref_points_f), isempty(ref_points_m))
+    error('Both fixed and moving reference points should be provided.')
+end
 
 % Create temporary working directory.
 char_list = char(['a':'z' '0':'9']) ;
@@ -211,6 +236,10 @@ try
             elastix_cmd = [elastix_cmd sprintf(' -mMask %s',mask_m)];
             
         end
+        if ~isempty(ref_points_f)
+            % Add fixed and moving reference points, if provided.
+             elastix_cmd = [elastix_cmd sprintf(' -fp %s -mp %s',ref_points_f,ref_points_m)];
+        end
         if stepnr ~= 1
             % After first step, use previous parameter file as initial
             % transform
@@ -306,23 +335,35 @@ try
     
     if ~isempty(result_image)
         % Write the result image
-        img_reg = fullfile(tmpdir,sprintf('step%02d',nSteps),...
-        'result.0.nii.gz');
-    
+        img_reg = ls(fullfile(tmpdir,sprintf('step%02d',nSteps),'result.*'));
+        
         if exist(fileparts(result_image),'dir') ~= 7
             mkdir(fileparts(result_image))
         end
-        if exist(img_reg,'file') == 2
-            % Result image was written. Copy this file.
-            movefile(img_reg,result_image)
-        else
+        if isempty(img_reg)
             % Result image was not written. Create with elastix
             transformix_cmd = sprintf('transformix -in %s -out %s -tp %s',...
-                moving_3D{1},tmpdir,transform_file);
+                moving_3D{1},fullfile(tmpdir,sprintf('step%02d',nSteps)),transform_file);
             system(transformix_cmd)
-            movefile(fullfile(tmpdir,'result.nii.gz'),result_image)
+            img_reg = ls(fullfile(tmpdir,sprintf('step%02d',nSteps),'result.*'));
         end
-            
+        % Check extension
+        img_reg = fullfile(tmpdir,sprintf('step%02d',nSteps),img_reg);
+        if endsWith(result_image,'.nii.gz') && endsWith(img_reg,'.nii')
+            % Result image is currently not zipped, while a zipped file is
+            % requested as output.
+            gzip(img_reg)
+            movefile([img_reg '.gz'],result_image)
+        elseif endsWith(result_image,'.nii') && endsWith(img_reg,'.nii.gz')
+            % Result image is currently zipped, while a unzipped file
+            % is requested.
+            gunzip(img_reg)
+            movefile(img_reg(1:end-3),result_image)
+        elseif endsWith(result_image,'.nii.gz') && endsWith(img_reg,'.nii.gz')
+            movefile(img_reg,result_image)
+        elseif endsWith(result_image,'.nii') && endsWith(img_reg,'.nii')
+            movefile(img_reg,result_image)
+        end            
     end
 
     if ~isempty(deformation)
@@ -336,9 +377,26 @@ try
         if exist(fileparts(deformation),'dir') ~= 7
             mkdir(fileparts(deformation))
         end
-        movefile(fullfile(tmpdir,'deformationField.nii.gz'),deformation)
+        % Check extension
+        tmpname = ls(fullfile(tmpdir,'deformationField.*'));
+        if endsWith(deformation,'.nii.gz') && endsWith(tmpname,'.nii')
+            % Result image is currently not zipped, while a zipped file is
+            % requested as output.
+            gzip(fullfile(tmpdir,tmpname))
+            movefile(fullfile(tmpdir,'deformationField.nii.gz'),deformation)
+        elseif endsWith(deformation,'.nii') && endsWith(tmpname,'.nii.gz')
+            % Result image is currently zipped, while a unzipped file
+            % is requested.
+            gunzip(fullfile(tmpdir,tmpname))
+            movefile(fullfile(tmpdir,'deformationField.nii'),deformation)
+        elseif endsWith(deformation,'.nii.gz') && endsWith(tmpname,'.nii.gz')
+            movefile(fullfile(tmpdir,'deformationField.nii.gz'),deformation)
+        elseif endsWith(deformation,'.nii') && endsWith(tmpname,'.nii')
+            movefile(fullfile(tmpdir,'deformationField.nii'),deformation)
+        end
         fprintf(' completed. Saved as: %s\n',deformation)
     end
+    
     
     if ~isempty(jacobian)
         fprintf('Calculating spatial jacobian...')
@@ -350,8 +408,29 @@ try
         if exist(fileparts(jacobian),'dir') ~= 7
             mkdir(fileparts(jacobian))
         end
-        movefile(fullfile(tmpdir,'fullSpatialJacobian.nii.gz'),jacobian)
+        tmpname = ls(fullfile(tmpdir,'fullSpatialJacobian.*'));
+        if endsWith(jacobian,'.nii.gz') && endsWith(tmpname,'.nii')
+            % Result image is currently not zipped, while a zipped file is
+            % requested as output.
+            gzip(fullfile(tmpdir,tmpname))
+            movefile(fullfile(tmpdir,'fullSpatialJacobian.nii.gz'),jacobian)
+        elseif endsWith(jacobian,'.nii') && endsWith(tmpname,'.nii.gz')
+            % Result image is currently zipped, while a unzipped file
+            % is requested.
+            gunzip(fullfile(tmpdir,tmpname))
+            movefile(fullfile(tmpdir,'fullSpatialJacobian.nii'),jacobian)
+        elseif endsWith(jacobian,'.nii.gz') && endsWith(tmpname,'.nii.gz')
+            movefile(fullfile(tmpdir,'fullSpatialJacobian.nii.gz'),jacobian)
+        elseif endsWith(jacobian,'.nii') && endsWith(tmpname,'.nii')
+            movefile(fullfile(tmpdir,'fullSpatialJacobian.nii'),jacobian)
+        end        
+%         movefile(fullfile(tmpdir,'fullSpatialJacobian.nii.gz'),jacobian)
         fprintf(' completed. Saved as: %s\n',jacobian)
+    end
+    
+    % Copy the log file
+    if ~isempty(log_file)
+        copyfile(fullfile(tmpdir,sprintf('step%02d',nSteps),'elastix.log'),log_file)
     end
     % Delete the temporary working directory.
     rmdir(tmpdir,'s')
@@ -359,7 +438,7 @@ try
 catch ME
     % remove temporary working directory, then throw error message
     rmdir(tmpdir,'s')
-    error(ME.message)
+    error(getReport(ME))
 end
 
 

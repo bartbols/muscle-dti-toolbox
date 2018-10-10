@@ -2,6 +2,10 @@ function varargout = calculate_fat_map( mDixon,fat_map,varargin )
 %CALCULATE_FAT_MAP Calculates a fat fraction map form the mDixon scan and
 %saves the the map as a NIfTI file.
 %
+% Bart Bolsterlee
+% Neuroscience Research Australia
+% June 2018
+%
 % ----------------- USAGE -----------------
 % nii = calculate_fat_map(mDixon,fat_map,varargin)
 %

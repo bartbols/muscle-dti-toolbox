@@ -1,4 +1,4 @@
-function EV1_filename = MakeEV1map( fib_filename,DTI_filename, fa_threshold,varargin )
+function varargout = MakeEV1map( fib_filename,DTI_filename, fa_threshold,varargin )
 %FIB_TO_NII Reads the primary eigenvector data from the DSI-reconstructed
 % .fib-file and saves it as a nifti-file with the same metadata as the
 % original DTI data.
@@ -23,7 +23,7 @@ function EV1_filename = MakeEV1map( fib_filename,DTI_filename, fa_threshold,vara
 %
 % ----------------- OUTPUT ----------------- 
 %-  EV1_filename      : filename of new file with primary eigenvector data
-%
+%-  EV1               : NIfTI structure with primary eigenvector data
 
 %% Check inputs
 p = inputParser;
@@ -110,6 +110,13 @@ DTI_nii.hdr.dime.scl_inter = 0;
 DTI_nii.hdr.dime.bitpix = 32;
 DTI_nii.hdr.dime.datatype = 16;
 save_untouch_nii(DTI_nii,EV1_filename)
+
+if nargout > 0
+    varargout{1} = EV1_filename;
+    if nargout > 1
+        varargout{2} = DTI_nii;
+    end
+end
 
 
 end % of function

@@ -15,6 +15,7 @@ function [h,h_norm] = plot_surface( surf_model,varargin )
 % EdgeColor  : color of the edge of the surface model. Default: 'none'
 % FaceAlpha  : transparency value of the faces. Default: 0.3
 % EdgeAlpha  : transparency value of the edges. Default: 1
+% LineWidth  : linewidth of the edges. Default: 1
 % ShowNormals : Show normal vectors of the surface model.
 
 
@@ -24,6 +25,7 @@ addParameter(p,'FaceColor','r')
 addParameter(p,'FaceAlpha',0.3,@isscalar)
 addParameter(p,'EdgeColor','none')
 addParameter(p,'EdgeAlpha',1,@isscalar)
+addParameter(p,'LineWidth',1,@isscalar)
 addParameter(p,'ShowNormals',false)
 
 parse(p,surf_model,varargin{:})
@@ -40,7 +42,8 @@ h = patch('Vertices',surf_model.vertices,...
                'FaceColor',p.Results.FaceColor,...
                'FaceAlpha',p.Results.FaceAlpha,...
                'EdgeColor',p.Results.EdgeColor,...
-               'EdgeAlpha',p.Results.EdgeAlpha);
+               'EdgeAlpha',p.Results.EdgeAlpha,...
+               'LineWidth',p.Results.LineWidth);
 
 if p.Results.ShowNormals == true
     if ~isfield(surf_model,'normals')

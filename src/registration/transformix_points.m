@@ -1,5 +1,5 @@
-function [ points_out ] = transformix_points( points,transform_file )
-%TRANSFORMIX_POINTS transforms 'points' (n x 3 array with physical
+function [ points_out ] = transformix_points( points,transform_file,varargin )
+%TRANSFORMIX_POINTS transforms 'points' (n x 3 array with physical/voxel
 % coordinates) and transforms these points with the Elastix transformation
 % file 'transformfile' using Transformix. The transformed points are
 % returned.
@@ -10,6 +10,22 @@ function [ points_out ] = transformix_points( points,transform_file )
 % Example:
 % points_out = transformix_points(points_in,transform_file)
 
+
+% Read inputs
+p = inputParser;
+addRequired(p,'points')
+addRequired(p,'transform_file')
+addParameter(p,'type','point',@(x) any(strcmp(x,{'point','index'})))
+addParameter(p,'flip_xy',true,@(x) islogical(x) || x==1 || x==0)
+parse(p,'points','transform_file',varargin{:})
+
+type = p.Results.type;
+flip_xy = p.Results.flip_xy;
+
+%%
+if nargin < 3
+    type = 'point';
+end
 % Create temporary working directory.
 char_list = char(['a':'z' '0':'9']) ;
 tmpdir = [];
@@ -27,16 +43,21 @@ try
     if n ~= 3
         points = points';
     end
-    % Write vertices to transformix input points file. Because of 
-    % differences in ITK and NIFTI coordinate system, x- and y-values 
-    % need to be flipped before transformation.
-    R =  [-1 0 0;0 -1 0;0 0 1];
+    
+    if flip_xy == true
+        % Write vertices to transformix input points file. Because of 
+        % differences in ITK and NIFTI coordinate system, x- and y-values 
+        % need to be flipped before transformation.
+        R =  [-1 0 0;0 -1 0;0 0 1];
+    else
+        R = eye(3);
+    end
     
     % Check for NaNs
     nanidx = any(isnan(points),2);   
     
     InputPointsWriter(fullfile(tmpdir,'inputpoints.txt'),...
-        points(~nanidx,:)*R,'point')
+        points(~nanidx,:)*R,'type',type)
     
     % Build up the transformix command.
     transformix_cmd = sprintf('transformix -def %s -out %s -tp %s',...
@@ -45,14 +66,19 @@ try
         transform_file);
     
     % Run transformix
-    system(transformix_cmd);
+    [status,cmdout] = system(transformix_cmd);
     
     % Read the transformed vertices
     out = OutputPointsReader(fullfile(tmpdir,'outputpoints.txt'));
     
     % Flip vertices back to NIFTI coordinates and save as STL file.
-    points_out = NaN(size(points));    
-    points_out(~nanidx,:) = out.OutputPoint*R;
+    points_out = NaN(size(points));
+    switch type
+        case 'point'
+            points_out(~nanidx,:) = out.OutputPoint*R;
+        case 'index'
+            points_out(~nanidx,:) = double(out.OutputIndexFixed)*R;
+    end
     if n ~= 3
         points_out = points_out';
     end
@@ -62,7 +88,7 @@ try
 catch ME
     % remove temporary working directory, then throw error message
     rmdir(tmpdir,'s')
-    error(ME.message)
+    error(getReport(ME))
 end
 
 end

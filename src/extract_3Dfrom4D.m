@@ -1,4 +1,4 @@
-function filename_out = extract_3Dfrom4D( filename_4D,filename_3D,i )
+function varargout = extract_3Dfrom4D( filename_4D,filename_3D,i )
 %EXTRACT_3DTO4D extracts the i-th 3D stack from the 4D image input. The
 %3D image is saved.
 %
@@ -45,16 +45,16 @@ if i ~= 0
     save_untouch_nii(nii3D,filename_3D)
     fprintf('Stack %d saved as %s\n',i,filename_3D)
     filename_out = filename_3D;
-else
+elseif i == 0
     filename_out = cell(1,nii4D.hdr.dime.dim(5));
     for i = 1 : nii4D.hdr.dime.dim(5)
         % Extract the i-th stack
-        nii3D     = nii4D;
-        nii3D.img = nii4D.img(:,:,:,i);
+        nii3D(i)     = nii4D;
+        nii3D(i).img = nii4D.img(:,:,:,i);
 
         % Edit the header to conform with 3D data
-        nii3D.hdr.dime.dim(1) = 3;                      % (make it 3D only)
-        nii3D.hdr.dime.dim(5:8) = 1;                    % (make it 3D only)
+        nii3D(i).hdr.dime.dim(1) = 3;                      % (make it 3D only)
+        nii3D(i).hdr.dime.dim(5:8) = 1;                    % (make it 3D only)
 
         % Save the 3D data
         [~,b,c] = fileparts(filename_4D);
@@ -65,12 +65,18 @@ else
             fprintf('Folder ''%s'' created.\n',filename_3D)
         end
         
-        save_untouch_nii(nii3D,fullfilename)
+        save_untouch_nii(nii3D(i),fullfilename)
         fprintf('Stack %d saved as %s\n',i,fullfilename)
         filename_out{i} = fullfilename;
 
     end
-    
+end
+
+if nargout > 0
+    varargout{1} = filename_out;
+    if nargout > 1
+        varargout{2} = nii3D;
+    end
 end
 end
 
