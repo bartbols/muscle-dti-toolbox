@@ -83,7 +83,6 @@ try
         points_out = points_out';
     end
     rmdir(tmpdir,'s')
-    fprintf('\n')
     
 catch ME
     % remove temporary working directory, then throw error message

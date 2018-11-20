@@ -29,9 +29,10 @@ function varargout = calc_strains(transform_file,filename_EV1,results_path,varar
 %              mask will be set to zero in the resulting images.
 % - F        : filename or NIfTI struture with deformation gradient tensor.
 %
-% Note:  The data is presented in the NIfTI coordinate system, with x and y
-%        axes flipped relative to the ITK coordinates in which Elastix
-%        works.
+% Note: Elastix works in ITK coordinates, which has the x- and y-axis
+% flipped relative to the NIfTI coordinate system. Make sure that the
+% deformation, deformation gradient and eigenvector maps are in ITK
+% coordinates.
 %
 % The following files will be saved to the results folder:
 %
@@ -94,12 +95,8 @@ else
 end
 
 try
-    % Load the EV1 map, then change sign of x and y direction. I've checked
-    % this in ITK-snap but may need some more checking (especially for
-    % different srow combinations).
     
     EV1 = load_untouch_nii(filename_EV1);
-%     EV1.img(:,:,:,1:2) = -EV1.img(:,:,:,1:2);
 
     if isempty(F)
         % Copy the transform file to the local working directory and modify the
@@ -135,13 +132,6 @@ try
             F = load_untouch_nii(F);
         end
     end
-    % Again, flip to NIfTI coordinates.
-    % Elastix works in ITK coordinates, which have x and y-axis in opposite
-    % directions to the NIfTI coordinates in which we work here. Correct
-    % for that here by changing the signs of some of the componenets of the
-    % Jacobian matrix (only the components that have dz in it (except dz/dz)
-    % because for dx/dx and dy/dz for example the negative signs cancel out).
-%     F.img(:,:,:,:,[3 6 7 8]) = -F.img(:,:,:,:,[3 6 7 8]);
     
     % Get image dimensions
     imdim = EV1.hdr.dime.dim(2:4);
@@ -216,6 +206,7 @@ try
                 % Get strain tensor and fibre direction of the current voxel
 %                 Cvoxel = squeeze(C(i,j,k,1:3,1:3)) - eye(3);
                 fib_dir = squeeze(EV1.img(i,j,k,:));
+                
                 if all(fib_dir==0);continue;end
                 
                 % Calculate the stretch tensor

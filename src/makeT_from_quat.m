@@ -1,6 +1,10 @@
-function [ T ] = makeT_from_quat( img )
+function [ T,R ] = makeT_from_quat( img )
 %MAKET_FROM_QUAT builds the 4x4 spatial transformation matrix from the
 %header information in the NIfTI structure 'img'.
+
+if ~isstruct(img)
+    img = load_untouch_nii(img);
+end
 
 b = img.hdr.hist.quatern_b;
 c = img.hdr.hist.quatern_c;

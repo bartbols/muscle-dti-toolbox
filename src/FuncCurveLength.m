@@ -7,9 +7,9 @@ function [ CurveLength,StraightLength ] = FuncCurveLength( P,t0,t1,varargin )
 % Bart Bolsterlee, Neuroscience Research Australia (NeuRA)
 % February 2017
 % ----------------- USAGE ----------------- 
-% [CurveLength, StraightLength] = CalcCurvature(P,t0,t1)
+% [CurveLength, StraightLength] = FuncCurveLength(P,t0,t1)
 % or
-% [CurveLength, StraightLength] = CalcCurvature(P,t0,t1,N)
+% [CurveLength, StraightLength] = FuncCurveLength(P,t0,t1,N)
 %
 % ----------------- INPUT ----------------- 
 % - P: 1x1 structure array with fields x, y and z containing the
