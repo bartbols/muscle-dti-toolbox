@@ -54,7 +54,7 @@ F.hdr.dime.scl_inter = 0;
 F.hdr.dime.glmin = 0;
 F.hdr.dime.glmax = 1;
 
-if fileparts(fat_map,'dir') ~= 7;mkdir(fileparts(fat_map));end
+if exist(fileparts(fat_map),'dir') ~= 7;mkdir(fileparts(fat_map));end
 save_untouch_nii(F,fat_map);
 fprintf('Fat map saved as %s.\n',fat_map)
 
