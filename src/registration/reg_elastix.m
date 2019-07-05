@@ -33,7 +33,7 @@ function reg_elastix( fixed, moving, parfile,varargin )
 %                          Registration will be optimised for the region in
 %                          the mask only; regions outside the mask may have
 %                          poor alignment.
-% - label_number         : label number in the mask used for segmentation
+% - label_number         : label number(s) in the mask used for segmentation
 %                          (only required if mask contains multiple labels)
 % - foreground_threshold : threshold intensity for foreground. A mask will 
 %                          be created from the fixed image using all voxels
@@ -176,7 +176,7 @@ try
             M.img = cast(M.img ~= 0,'like',M.img);
         else
             % Extract the selected label from the mask
-            M.img = cast(M.img == label_number,'like',M.img);
+            M.img = cast(ismember(M.img, label_number),'like',M.img);
         end
         
         if ~isempty(dilate_mask)        

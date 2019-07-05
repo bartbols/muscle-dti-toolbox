@@ -69,7 +69,7 @@ try
             else
                 ModifyTransformFile(transform_file,ref_image,tf_file)
             end
-            
+%             tf_file = transform_file;
             if img_in.hdr.dime.dim(1) == 3 || img_in.hdr.dime.dim(1) == 2
                 % Image is 2D or 3D and can be transformed directly with transformix
                 

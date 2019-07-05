@@ -1,4 +1,4 @@
-function [h,h_norm] = plot_surface( surf_model,varargin )
+function varargout = plot_surface( surf_model,varargin )
 %PLOT_SURFACE Plots a surface model with the default settings, or custom
 %settings when provided.
 %
@@ -66,5 +66,11 @@ else
     hold(gca,'on')
 end
 
+if nargout > 0
+    varargout{1} = h;
+    if nargout > 1
+        varargout{2} = h_norm;
+    end
+end
 end
 

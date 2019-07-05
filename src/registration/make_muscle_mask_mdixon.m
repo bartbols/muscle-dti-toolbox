@@ -11,6 +11,8 @@ segm = (mdixon.img(:,:,:,stack)*mdixon.hdr.dime.scl_slope)>threshold;
 for i = 1 : nErode
     segm = imerode(segm,ones(3,3,3));
 end
+% segm = imerode(segm,strel('disk',nErode,0));
+
 % Extract the largest connected component
 CC = bwconncomp(segm,26);
 [~,idx] = max(cellfun(@length,CC.PixelIdxList));
@@ -22,6 +24,7 @@ segm(CC.PixelIdxList{idx}) = 1;
 for i = 1 : nErode
     segm = imdilate(segm,ones(3,3,3));
 end
+% segm = imdilate(segm,strel('disk',nErode,0));
 
 for k = 1 : size(segm,3)
     segm(:,:,k) = imfill(segm(:,:,k),'holes');

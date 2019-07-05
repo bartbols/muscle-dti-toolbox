@@ -59,6 +59,10 @@ function varargout = Preprocessing_and_DTI_recon( varargin )
 %           {'rigid.txt','bspline.txt'}. Or to only perform a bspline, use
 %           'bspline.txt'.
 %
+% reconmask: filename of a binary mask at the resolution of the DTI scan
+%            indicating for which voxels the tensor reconstructions should 
+%            be done (1 in mask means reconstruct tensor).
+%
 % And these parameters are optional registration parameters
 %
 % - mask                 : filename of the mask file used for registration
@@ -113,6 +117,7 @@ addParameter(p,'stack',[],@(x) assert(isscalar(x)))
 addParameter(p,'b0_stack',1,@(x) assert(isscalar(x)))
 addParameter(p,'InspectRegistration',false,@(x) islogical(x) || x==1 || x==0);
 addParameter(p,'RegistrationTag','reg',@(x) ischar(x));
+addParameter(p,'reconmask',[],@(x) contains(x,'.nii'))
 
 parse(p,varargin{:});
 
@@ -285,13 +290,15 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
         rician   = 1; % if 1, rician noise supprression
         nbthread = 1;
         verbose  = 1;
-        DWIdenoised = DWIDenoisingLPCA(DWI_data.img, 1, rician, nbthread, verbose);
+        
+        DWIdenoised = DWIDenoisingLPCA(double(DWI_data.img)*DWI_data.hdr.dime.scl_slope + DWI_data.hdr.dime.scl_inter,...
+            1, rician, nbthread, verbose);
         
         % Save the filtered data as a nifti-file again.
         % Make NaN's zeros
         DWIdenoised(isnan(DWIdenoised)) = 0;
         
-        DWI_data.img = cast(DWIdenoised,'like',DWI_data.img);
+        DWI_data.img = cast((DWIdenoised-DWI_data.hdr.dime.scl_inter)/DWI_data.hdr.dime.scl_slope,'like',DWI_data.img);
         save_untouch_nii(DWI_data,filename.DTI_filt)
     else
         warning('DTI data is not filtered')
@@ -397,17 +404,21 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
     % Before fibre reconstruction, a mask with only 1's with the
     % dimensions of the DTI scans needs to be created to avoid automatic
     % thresholding.
-    mask = DWI_data;
-    dim = size(DWI_data.img);
-    mask.img = cast(ones(dim(1:3)),'like',DWI_data.img);
-    voxel_size = DWI_data.hdr.dime.pixdim(2:4);
-    mask.hdr.dime.dim(1) = 3;
-    mask.hdr.dime.dim(5) = 1;
-    mask.hdr.hist.srow_x = [voxel_size(1) 0 0 0];
-    mask.hdr.hist.srow_y = [0 voxel_size(2) 0 0];
-    mask.hdr.hist.srow_z = [0 0 voxel_size(3) 0];
-    tmp_mask_fname = fullfile(tempdir,'tmp.nii.gz');
-    save_untouch_nii(mask,tmp_mask_fname);
+    if isempty(F{strcmp(F(:,1),'reconmask'),2})
+        mask = DWI_data;
+        dim = size(DWI_data.img);
+        mask.img = cast(ones(dim(1:3)),'like',DWI_data.img);
+        voxel_size = DWI_data.hdr.dime.pixdim(2:4);
+        mask.hdr.dime.dim(1) = 3;
+        mask.hdr.dime.dim(5) = 1;
+        mask.hdr.hist.srow_x = [voxel_size(1) 0 0 0];
+        mask.hdr.hist.srow_y = [0 voxel_size(2) 0 0];
+        mask.hdr.hist.srow_z = [0 0 voxel_size(3) 0];
+        tmp_mask_fname = fullfile(tempdir,'tmp.nii.gz');
+        save_untouch_nii(mask,tmp_mask_fname);
+    else
+        tmp_mask_fname = F{strcmp(F(:,1),'reconmask'),2};
+    end
     
     commandTxt = sprintf('dsi_studio --action=rec --source=%s --method=%d --mask=%s --check_btable=0 --output_tensor=1 --output=%s',...
         filename.SRC,1,tmp_mask_fname,filename.FIB);

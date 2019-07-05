@@ -36,6 +36,18 @@ while ischar(tline)
             -img.hdr.hist.qoffset_x,...
             -img.hdr.hist.qoffset_y,...
              img.hdr.hist.qoffset_z);
+    elseif startsWith(tline,'(Direction')
+        % Change orientation of direction cosines because of differences in 
+        % coordinate systems between NIFTI (our data) and
+        % ITK (in which elastix works).
+        [~,R] = makeT_from_quat(img);
+        if img.hdr.dime.pixdim(1) == -1
+            A{i} = sprintf('(Direction %.5f %.5f %.5f %.5f %.5f %.5f %.5f %.5f %.5f)',...
+                -R(1),-R(2),R(3),-R(4),-R(5),R(6),R(7),R(8),-R(9));
+        elseif img.hdr.dime.pixdim(1) == 1
+            A{i} = sprintf('(Direction %.5f %.5f %.5f %.5f %.5f %.5f %.5f %.5f %.5f)',...
+                -R(1),-R(2),R(3),-R(4),-R(5),R(6),-R(7),-R(8),--R(9));
+        end
          
     else
         A{i} = tline;
