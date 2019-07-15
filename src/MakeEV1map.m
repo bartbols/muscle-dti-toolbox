@@ -57,7 +57,6 @@ DTI_nii = load_untouch_nii(DTI_filename);
 % Create new nifti-file with same metadata as original DTI data but with
 % the primary eigenvector data (3-channels) as image data
 perm_dim = [2 3 4 1];
-% perm_dim = [2 3 4 1];
 eigvec_map = permute(reshape(fib_data.dir0,[3 fib_data.dimension]),perm_dim);
 
 % Filter the eigenvector map based on FA

@@ -345,6 +345,16 @@ try
                 fullfile(tmpdir,'mask_resampled.nii.gz'));
             [status,cmdout] = system(commandTxt);
             
+            
+            commandTxt = sprintf('c3d %s %s -reslice-identity -swapdim LPI -o %s',...
+                fullfile(tmpdir,'DTI_3D.nii.gz'),...
+                fullfile(tmpdir,'mask.nii.gz'),...
+                'temp.nii.gz');
+            [status,cmdout] = system(commandTxt);
+            
+            [status,cmdout] = system(sprintf('c3d %s -swapdim LAS -o %s',...
+                 fullfile(tmpdir,'mask_resampled.nii.gz'),'temp2.nii.gz'))
+            
             % Read resampled mask into the workspace
             mask_resampled = load_untouch_nii(fullfile(tmpdir,'mask_resampled.nii.gz'));
             
@@ -373,9 +383,22 @@ try
             % orientation in DSI Studio, but pixdim does not. DSI studio
             % also does not read any translational data (last element of
             % the srow-vectors).
-            full_mask.hdr.hist.srow_x = [sign(DTI_data.hdr.hist.srow_x(1)) * DTI_data.hdr.dime.pixdim(2) 0 0 0];
-            full_mask.hdr.hist.srow_y = [0 sign(DTI_data.hdr.hist.srow_y(2)) * DTI_data.hdr.dime.pixdim(3) 0 0];
-            full_mask.hdr.hist.srow_z = [0 0 sign(DTI_data.hdr.hist.srow_z(3)) * DTI_data.hdr.dime.pixdim(4) 0];
+%             full_mask.hdr.hist.srow_x = [sign(DTI_data.hdr.hist.srow_x(1)) * DTI_data.hdr.dime.pixdim(2) 0 0 0];
+%             full_mask.hdr.hist.srow_y = [0 sign(DTI_data.hdr.hist.srow_y(2)) * DTI_data.hdr.dime.pixdim(3) 0 0];
+%             full_mask.hdr.hist.srow_z = [0 0 sign(DTI_data.hdr.hist.srow_z(3)) * DTI_data.hdr.dime.pixdim(4) 0];
+%             full_mask.hdr.hist.srow_x = [sign(DTI_data.hdr.hist.srow_x(1)) * DTI_data.hdr.dime.pixdim(2) 0 0 0];
+%             full_mask.hdr.hist.srow_y = [0 sign(DTI_data.hdr.hist.srow_y(2)) * DTI_data.hdr.dime.pixdim(3) 0 0];
+%             full_mask.hdr.hist.srow_z = [0 0 sign(DTI_data.hdr.hist.srow_z(3)) * DTI_data.hdr.dime.pixdim(4) 0];
+            
+            [~,i1] = max(abs(DTI_data.hdr.hist.srow_x(1:3)));
+            [~,i2] = max(abs(DTI_data.hdr.hist.srow_y(1:3)));
+            [~,i3] = max(abs(DTI_data.hdr.hist.srow_z(1:3)));
+            full_mask.hdr.hist.srow_x = zeros(1,4);
+            full_mask.hdr.hist.srow_x(i1) = sign(DTI_data.hdr.hist.srow_x(i1)) * DTI_data.hdr.dime.pixdim(i1+1);
+            full_mask.hdr.hist.srow_y = zeros(1,4);
+            full_mask.hdr.hist.srow_y(i2) = sign(DTI_data.hdr.hist.srow_y(i2)) * DTI_data.hdr.dime.pixdim(i2+1);
+            full_mask.hdr.hist.srow_z = zeros(1,4);
+            full_mask.hdr.hist.srow_z(i3) = sign(DTI_data.hdr.hist.srow_z(i3)) * DTI_data.hdr.dime.pixdim(i3+1);            
             
             % Create the boundary mask
             boundary_mask = full_mask;

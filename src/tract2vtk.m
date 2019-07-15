@@ -153,6 +153,10 @@ for d = 1 : nFiles
         SEL{d}(nansum(DTItracts(d).ext(SEL{d},:),2) > mm_threshold) = [];
     end
     
+    % Exclude fibres with NaN in fibindex. These fibres did not have
+    % a sufficient number of points inside the muscle to be included.
+    SEL{d}(isnan(DTItracts(d).fibindex_trunc(SEL{d},1))) = [];
+    
     % Randomly select fibres if the maximum number of fibres is smaller
     % than the current selection
     if ~isempty(max_fibres)
@@ -197,6 +201,9 @@ for d = 1 : nFiles
         t = t+1;
         len(t) = size(newpoints,2);
         points = [points newpoints];
+        if any(isnan(newpoints))
+            disp('bla')
+        end
     end
 end
 nTracts = t;

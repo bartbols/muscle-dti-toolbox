@@ -79,6 +79,10 @@ function varargout = Preprocessing_and_DTI_recon( varargin )
 %                          This requires ITK-SNAP to be added to the path.
 % - RegistrationTag      : Tag (char) to append to the registered filenames.
 %                          Default: 'reg'
+% - reorient             : Removes the off-diagonal components from the DTI
+%                          image header in an attempt to solve the problem
+%                          DSI studio sometimes has interpreting the 
+%                          DTI image orientation.
 
 %
 % ----------------- OUTPUT ----------------- 
@@ -105,6 +109,7 @@ addParameter(p,'SRC' ,[],@(x) contains(x,'.src.gz'))
 addParameter(p,'FIB' ,[],@(x) contains(x,'.fib.gz'))
 addParameter(p,'filter'     ,true,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'CorrectBVEC',true,@(x) x==0 || x==1 || islogical(x) )
+addParameter(p,'reorient',true,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'ResultsPath',[])
 
 % Registration parameters
@@ -369,36 +374,59 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
     % from the header, causing dimensions to be switched in the SRC file. 
     % To prevent this from happening, the header information is altered
     % here before the SRC-file and FIB-file are created.
-    
-    DWI_uncorr = load_untouch_nii(DTI_fname);
-    
-    % Correct header
-    DWI_uncorr.hdr.hist.srow_x = [sign(DWI_uncorr.hdr.hist.srow_x(1))*DWI_uncorr.hdr.dime.pixdim(2) 0 0 0];
-    DWI_uncorr.hdr.hist.srow_y = [0 sign(DWI_uncorr.hdr.hist.srow_y(2))*DWI_uncorr.hdr.dime.pixdim(3) 0 0];
-    DWI_uncorr.hdr.hist.srow_z = [0 0 sign(DWI_uncorr.hdr.hist.srow_z(3))*DWI_uncorr.hdr.dime.pixdim(4) 0];
-    
-    try
-        % Save as new file
+    reorient = F{strcmp(F(:,1),'reorient'),2};
+    if reorient == true
+        DWI_uncorr = load_untouch_nii(DTI_fname);
+              
         char_list = char(['a':'z' '0':'9']) ;
-        tmp_file = fullfile(tempdir,[char_list(ceil(length(char_list)*rand(1,8))) '.nii.gz']);
-        save_untouch_nii(DWI_uncorr,tmp_file);
+        tmp = extract_3Dfrom4D(DWI_uncorr,fullfile(tempdir,char_list(ceil(length(char_list)*rand(1,8)))),0);        
+        nStacks = DWI_uncorr.hdr.dime.dim(5);  
+        for i = 1 : nStacks
+            fprintf('Changing header of stack %d of %d...\n',i,nStacks)
+            system(sprintf('c3d %s -swapdim LPS -o %s',tmp{i},tmp{i}));
+            tmpdata = load_untouch_nii(tmp{i});
+            if i == 1
+                DWI_corr = tmpdata;
+            else
+                DWI_corr.img(:,:,:,i) = tmpdata.img;
+            end
+        end
+        DWI_corr.hdr.dime.dim(1) = 4;
+        DWI_corr.hdr.dime.dim(5) = nStacks;
         
+        % I think that the bvecs needs reorientation as well but this has
+        % not yet been implemented.
+        
+%         
+%         % Put back into 4D file
+%         % Correct header
+%         DWI_uncorr.hdr.hist.srow_x = [sign(DWI_uncorr.hdr.hist.srow_x(1))*DWI_uncorr.hdr.dime.pixdim(2) 0 0 0];
+%         DWI_uncorr.hdr.hist.srow_y = [0 sign(DWI_uncorr.hdr.hist.srow_y(2))*DWI_uncorr.hdr.dime.pixdim(3) 0 0];
+%         DWI_uncorr.hdr.hist.srow_z = [0 0 sign(DWI_uncorr.hdr.hist.srow_z(3))*DWI_uncorr.hdr.dime.pixdim(4) 0];
+%         % Save as new file
+%         char_list = char(['a':'z' '0':'9']) ;
+        DTI_for_recon = fullfile(tempdir,[char_list(ceil(length(char_list)*rand(1,8))) '.nii.gz']);
+        save_untouch_nii(DWI_corr,DTI_for_recon);
+    else
+        DTI_for_recon = DTI_fname;
+    end
+        
+    
+%     try
         % Make SRC file with DSI Studio
         if exist(filename.SRC,'file')==2;delete(filename.SRC);end
         commandTxt = sprintf('dsi_studio --action=src --source=%s --bval=%s --bvec=%s --output=%s',...
-            tmp_file,...
+            DTI_for_recon,...
             filename.bval,...
             bvec_file,...
             filename.SRC);
         %
         [status,cmdout] = system(commandTxt,'-echo');
-        delete(tmp_file) % delete temporary DTI file again
-    catch ME
+%     catch ME
         % To prevent the temporary file to remain in existence if an
         % error occurs, first remove temporary file, then throw error message.
-        delete(tmp_file)
-        error(ME.message)
-    end
+%         error(ME.message)
+%     end
     
 %% ---- Create fib file  ----    
     % Before fibre reconstruction, a mask with only 1's with the
