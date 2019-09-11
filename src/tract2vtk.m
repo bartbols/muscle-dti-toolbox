@@ -175,6 +175,7 @@ end
 points = [];
 t=0;
 fprintf('Fibre type written to file: %s\n',char(towrite))
+excl_idx = [];
 for d = 1 : nFiles
     nTracts = numel(SEL{d});
 
@@ -198,16 +199,20 @@ for d = 1 : nFiles
                 Z = [DTItracts(d).endpoints(i,1,3) polyval(P(i).z,linspace(P(i).t0,P(i).t1,ns)) DTItracts(d).endpoints(i,2,3)];
                 newpoints = [X;Y;Z];
         end
+        if any(isnan(newpoints(:)))
+            % Exclude the fibre if any of the tract points are NaNs.
+            excl_idx = [excl_idx j];
+            continue
+        end
         t = t+1;
         len(t) = size(newpoints,2);
         points = [points newpoints];
-        if any(isnan(newpoints))
-            disp('bla')
-        end
     end
+    SEL{d}(excl_idx)=[];
 end
 nTracts = t;
 nPoints = size(points,2);
+
 
 %%
 % Open a VTK file for writing

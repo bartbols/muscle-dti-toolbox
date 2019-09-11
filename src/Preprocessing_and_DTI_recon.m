@@ -109,7 +109,7 @@ addParameter(p,'SRC' ,[],@(x) contains(x,'.src.gz'))
 addParameter(p,'FIB' ,[],@(x) contains(x,'.fib.gz'))
 addParameter(p,'filter'     ,true,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'CorrectBVEC',true,@(x) x==0 || x==1 || islogical(x) )
-addParameter(p,'reorient',true,@(x) x==0 || x==1 || islogical(x) )
+addParameter(p,'reorient',false,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'ResultsPath',[])
 
 % Registration parameters
@@ -172,10 +172,12 @@ end
 
 % Create the results path, if it doesn't exist already
 ResultsPath = F{strcmp(F(:,1),'ResultsPath'),2};
-if exist(ResultsPath,'dir') ~= 2
+if exist(ResultsPath,'dir') ~= 7
     mkdir(ResultsPath)
     fprintf('Results directory created: %s\n',ResultsPath)
-end% Decide whether to filter or not
+end
+
+% Decide whether to filter or not
 
 FilterFlag      = F{strcmp(F(:,1),'filter'),2};
 if nargin == 0
@@ -296,8 +298,10 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
         nbthread = 1;
         verbose  = 1;
         
+        warning off
         DWIdenoised = DWIDenoisingLPCA(double(DWI_data.img)*DWI_data.hdr.dime.scl_slope + DWI_data.hdr.dime.scl_inter,...
             1, rician, nbthread, verbose);
+        warning on
         
         % Save the filtered data as a nifti-file again.
         % Make NaN's zeros
