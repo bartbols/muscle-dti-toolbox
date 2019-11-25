@@ -389,7 +389,7 @@ if ~isempty(handles.D)
         if get(handles.from_apo_to_mus,'Value')
             is_from_apo_to_mus = (handles.D.attach_type(:,1) ~= handles.D.attach_type(:,2));
         else
-            is_from_apo_to_mus = true(size(handles.D.pct_ext,1),1);
+            is_from_apo_to_mus = true(size(handles.D.length_mm,1),1);
         end
 
         is_selected = is_from_apo_to_mus;

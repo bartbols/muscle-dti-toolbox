@@ -438,7 +438,7 @@ if PlotStats == true
         axis tight
     end
     
-    set(gcf,'Position',get(0,'ScreenSize') + [0 100 0 -200])
+%     set(gcf,'Position',get(0,'ScreenSize') + [0 100 0 -200])
 end
 if nargout > 0
     varargout{1} = handles;

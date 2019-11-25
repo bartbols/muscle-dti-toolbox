@@ -49,6 +49,9 @@ function filename = MakeSurfaceAndMasks(segm_filename, DTI_filename, varargin )
 % - MakeSurface: if true, surfaces (.stl) are created. Default = true.
 % - FillHoles  : if true, all holes in the binary mask will be filled prior
 %                to surface reconstruction. Default = true.
+% - FlipNormals : if true, the normal vectors of the surface models are
+%                 flipped. Use this option if the normals are pointing
+%                 inside. Default: false
 % - ResampleRes : isotropic voxelsize used for resampling the mask to. This
 %                 parameters determines the edgelength of the triangles in
 %                 the model. Default : 1.5.
@@ -90,12 +93,14 @@ addParameter(p,'NumberOfVoxelsToRemove',2,@(x)(isnumeric(x) && mod(x,1)==0 && x>
 addParameter(p,'MakeSurface',true,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'MakeMasks',true,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'FillHoles',true,@(x) x==0 || x==1 || islogical(x) )
+addParameter(p,'FlipNormals',false,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'ResampleRes',1.5,@isscalar)
 parse(p,segm_filename,DTI_filename,varargin{:});
 
 MakeSurface = p.Results.MakeSurface; % if true, surfaces are made
 MakeMasks   = p.Results.MakeMasks; % if true, masks are made
 FillHoles   = p.Results.FillHoles;
+FlipNormals = p.Results.FlipNormals;
 res         = p.Results.ResampleRes;
 
 %% Create results folder if it doesnt' exist
@@ -255,7 +260,7 @@ try
             
             % Apply some smoothing
             [conn,connnum,count] = meshconn(FV.faces,size(FV.vertices,1));
-            %             FV.vertices = smoothsurf(FV.vertices,[],conn,10,0.1,'laplacian');
+            %  FV.vertices = smoothsurf(FV.vertices,[],conn,10,0.1,'laplacian');
             FV.vertices = smoothsurf(FV.vertices,[],conn,50,0.7,'lowpass');
             
             % Transform to global coordinates
@@ -280,8 +285,9 @@ try
             FV.vertices = tf(1:3,:)';
             
             % Flip the normals
-            FV.faces(:,[1 2]) = FV.faces(:,[2 1]);
-            
+            if FlipNormals == true
+                FV.faces(:,[1 2]) = FV.faces(:,[2 1]);
+            end
             stlwrite(filename(c).surface,FV);
             fprintf('Surface saved as %s\n',filename(c).surface)
             clear FV

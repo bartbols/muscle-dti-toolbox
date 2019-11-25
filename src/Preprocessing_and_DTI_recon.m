@@ -353,7 +353,7 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
     end   
     %% ---- Create src file  ----
     
-%     Make SRC file with DSI Studio
+%   Make SRC file with DSI Studio
     if BVEC_correction == true
         bvec_file = filename.bvec_corr;
     else
