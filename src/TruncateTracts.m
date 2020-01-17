@@ -159,7 +159,7 @@ for fibnr =  1:nFib
     % Make sure the startpoint (column 1 in fibindex_trunc) has a lower z-value than
     % the endpoint (column2 in fibindex_trunc).
     if DTItracts.tracts_xyz(3,fibindex_trunc(fibnr,1)) > DTItracts.tracts_xyz(3,fibindex_trunc(fibnr,2))
-        fibindex_trunc(fibnr,:) = fliplr(fibindex_trunc(fibnr,:));
+        fibindex_trunc(fibnr,:)     = fliplr(fibindex_trunc(fibnr,:));
         DTItracts.fibindex(fibnr,:) = fliplr(DTItracts.fibindex(fibnr,:));
         
     end

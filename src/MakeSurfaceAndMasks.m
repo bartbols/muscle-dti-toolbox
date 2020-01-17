@@ -351,16 +351,6 @@ try
                 fullfile(tmpdir,'mask_resampled.nii.gz'));
             [status,cmdout] = system(commandTxt);
             
-            
-            commandTxt = sprintf('c3d %s %s -reslice-identity -swapdim LPI -o %s',...
-                fullfile(tmpdir,'DTI_3D.nii.gz'),...
-                fullfile(tmpdir,'mask.nii.gz'),...
-                'temp.nii.gz');
-            [status,cmdout] = system(commandTxt);
-            
-            [status,cmdout] = system(sprintf('c3d %s -swapdim LAS -o %s',...
-                 fullfile(tmpdir,'mask_resampled.nii.gz'),'temp2.nii.gz'))
-            
             % Read resampled mask into the workspace
             mask_resampled = load_untouch_nii(fullfile(tmpdir,'mask_resampled.nii.gz'));
             

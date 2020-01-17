@@ -17,8 +17,14 @@ function varargout = plot_surface( surf_model,varargin )
 % EdgeAlpha  : transparency value of the edges. Default: 1
 % LineWidth  : linewidth of the edges. Default: 1
 % ShowNormals : Show normal vectors of the surface model.
+% scale       : scale vertices by this factor
 
-
+if nargin == 0
+    [file,path] = uigetfile('*.stl','Select an STL-file');
+    if file == 0;return;end
+    surf_model = fullfile(path,file);
+    
+end
 p = inputParser;
 addRequired(p,'surf_model')
 addParameter(p,'FaceColor','r')
@@ -27,6 +33,7 @@ addParameter(p,'EdgeColor','none')
 addParameter(p,'EdgeAlpha',1,@isscalar)
 addParameter(p,'LineWidth',1,@isscalar)
 addParameter(p,'ShowNormals',false)
+addParameter(p,'scale',[],@isscalar)
 
 parse(p,surf_model,varargin{:})
 
@@ -35,9 +42,15 @@ if ~isstruct(surf_model)
     surf_model = stlread(surf_model);
 end
 
+if isempty(p.Results.scale)
+    scale = 1;
+else
+    scale = p.Results.scale;
+end
+    
 holdstate = ishold(gca);
 hold on
-h = patch('Vertices',surf_model.vertices,...
+h = patch('Vertices',surf_model.vertices*scale,...
                'Faces',surf_model.faces,...
                'FaceColor',p.Results.FaceColor,...
                'FaceAlpha',p.Results.FaceAlpha,...
