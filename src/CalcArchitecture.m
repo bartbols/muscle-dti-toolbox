@@ -34,6 +34,10 @@ function [ DTItracts ] = CalcArchitecture( DTItracts,SurfModel,varargin)
 % - aponeurosis: a structure array containing the fields
 %               'vertices','faces' with the vertices and faces of the 
 %               aponeurosis used for extrapolating the tracts.
+% - flipnormals   : by convention, the normals of the muscle surface model 
+%                   point outside. If they don't, set flipnormals to true.
+% - flipnormals_apo : by convention, the normals of the aponeurosis model 
+%                   point outside. If they don't, set flipnormals_apo to true.
 %
 % tracts_xyz is a 3 x N array containing the xyz-coordinates of all tracts
 % points of all fibres in the set.
@@ -68,10 +72,14 @@ addRequired(p,'DTItracts',@(x) isstruct(x) || exist(x,'file')==2)
 addRequired(p,'SurfModel',@(x) isstruct(x) || endsWith(x,'.stl','IgnoreCase',true))
 addParameter(p,'order',3,@(x) isscalar(x) && x>0)
 addParameter(p,'aponeurosis',[])
+addParameter(p,'flipnormals',true,@(x) x==0 || x==1 || islogical(x) )
+addParameter(p,'flipnormals_apo',true,@(x) x==0 || x==1 || islogical(x) )
 parse(p,DTItracts,SurfModel,varargin{:})
 
 order       = p.Results.order;
 aponeurosis = p.Results.aponeurosis;
+flipnormals = p.Results.flipnormals;
+flipnormals_apo = p.Results.flipnormals_apo;
 
 %% Read and check inputs
 % If a filename is provided, read the file with the DTItracts.
@@ -101,10 +109,17 @@ if ~isstruct(SurfModel)
     end
 end
 
+if flipnormals == true
+    SurfModel.faces = SurfModel.faces(:,[2 1 3]);
+end
+
 % Read the aponeurosis surface, if an aponeurosis is defined.
 if ~isempty(aponeurosis) && ~isstruct(aponeurosis)
     if exist(aponeurosis,'file') == 2
-        aponeurosis = stlread(aponeurosis);
+        aponeurosis = stlread(aponeurosis);        
+        if flipnormals_apo == true
+            aponeurosis.faces = aponeurosis.faces(:,[2 1 3]);
+        end
     else
         error('%s does not exist.',aponeurosis)
     end
