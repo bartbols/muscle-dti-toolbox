@@ -10,6 +10,7 @@ b = img.hdr.hist.quatern_b;
 c = img.hdr.hist.quatern_c;
 d = img.hdr.hist.quatern_d;
 a = sqrt(1.0-(b*b+c*c+d*d));
+a = real(a);
 
 R =[ a*a+b*b-c*c-d*d   2*b*c-2*a*d       2*b*d+2*a*c;...
      2*b*c+2*a*d       a*a+c*c-b*b-d*d   2*c*d-2*a*b;...

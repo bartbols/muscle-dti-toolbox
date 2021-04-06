@@ -61,6 +61,10 @@ set(gcf,'MenuBar','none','ToolBar','figure')
 axes(handles.axes3D)
 hold on
 axis equal vis3d
+light('position',[1 0 1])
+light('position',-[1 0 1])
+light('position',[-1 0 1])
+light('position',[1 0 -1])
 if exist('fcw','file') == 2
     fcw(gcf)
 end
@@ -204,7 +208,7 @@ end
 
 
 if isfield(handles,'VARS');handles = rmfield(handles,'VARS');end
-    
+
 guidata(hObject,handles);
 update_tracts_Callback(hObject, eventdata, handles)
 
@@ -381,19 +385,19 @@ if ~isempty(handles.D)
             end
             handles.threshold_table.Data = thresholds;
         end
-
+        
         % Get thresholds from the table
         thresholds = handles.threshold_table.Data;
-
+        
         %     if isfield(handles.D,'fibrelength')
         if get(handles.from_apo_to_mus,'Value')
             is_from_apo_to_mus = (handles.D.attach_type(:,1) ~= handles.D.attach_type(:,2));
         else
             is_from_apo_to_mus = true(size(handles.D.length_mm,1),1);
         end
-
+        
         is_selected = is_from_apo_to_mus;
-
+        
         D = struct2cell(handles.D);
         F = fieldnames(handles.D);
         for t = 1 : nT
@@ -433,7 +437,7 @@ if ~isempty(handles.D)
         if isempty(varnr)
             color_per_fibre = false;
         else
-            varName = handles.VARS{varnr,4};        
+            varName = handles.VARS{varnr,4};
             colordata  = handles.D.(varName);
             color_per_fibre = true;
         end
@@ -442,15 +446,21 @@ if ~isempty(handles.D)
         set(handles.color_coding,'Value',1)
     end
     
+    % Plot the polynomial fitted tracts, including extrapolations
+    
+    if isfield(handles,'tracts_poly')
+        delete(handles.tracts_poly)
+    end
     if get(handles.poly,'Value')
         axes(handles.axes3D)
-        % Plot the polynomial fitted tracts, including extrapolations
-        PlotX = [];PlotY = [];PlotZ = [];PlotC = [];
+        
         if isfield(handles.D,'PolyCoeff')
             P = handles.D.PolyCoeff;
         else
             error('''PolyCoeff'' not found as a field in handles.D. Polynomials fits cannot be plotted.')
         end
+        STREAMS = cell(1,length(selection3D));
+        counter=0;
         for fibnr = selection3D
             if isempty(P(fibnr).x);continue;end
             if any(isnan(handles.D.fibindex_trunc(fibnr,1:2)))
@@ -460,93 +470,110 @@ if ~isempty(handles.D)
             tmpX = [handles.D.endpoints(fibnr,1,1) polyval(P(fibnr).x,linspace(P(fibnr).t0,P(fibnr).t1,100)) handles.D.endpoints(fibnr,2,1)];
             tmpY = [handles.D.endpoints(fibnr,1,2) polyval(P(fibnr).y,linspace(P(fibnr).t0,P(fibnr).t1,100)) handles.D.endpoints(fibnr,2,2)];
             tmpZ = [handles.D.endpoints(fibnr,1,3) polyval(P(fibnr).z,linspace(P(fibnr).t0,P(fibnr).t1,100)) handles.D.endpoints(fibnr,2,3)];
-            PlotX = [PlotX NaN tmpX];
-            PlotY = [PlotY NaN tmpY];
-            PlotZ = [PlotZ NaN tmpZ];
-            if color_per_fibre == true
-                PlotC = [PlotC ones(1,size(tmpX,2)+1)*colordata(fibnr,:)];
-            end
+            counter = counter + 1;
+            STREAMS{counter} = [tmpX;tmpY;tmpZ]';
         end
-        if ~isfield(handles,'tracts_poly')
-            % Create new handle.
-            handles.tracts_poly = patch(PlotX(:),PlotY(:),PlotZ(:),'k',...
-                'FaceColor','none',...
-                'EdgeColor','flat',...
-                'LineWidth',1);
-                
-%                 'Color',get(handles.set_color_poly,'BackgroundColor'));
-        else            
-            % Update polynomials.
-            set(handles.tracts_poly,'XData',PlotX(:),'YData',PlotY(:),'ZData',PlotZ(:))
+        if isfield(handles,'tracts_poly')
+            delete(handles.tracts_poly)
         end
+        handles.tracts_poly = streamtube(STREAMS,[0.05 10]);
+        set(handles.tracts_poly,'EdgeColor','none',...
+            'FaceColor',get(handles.set_color_poly,'BackgroundColor'),...
+            'DiffuseStrength',0.2,...
+            'AmbientStrength',0.6,...
+            'SpecularStrength',1.0)
         % Update fibre colors
         if color_per_fibre == true
-            set(handles.tracts_poly,'FaceVertexCData',PlotC')
+            for counter = 1 : length(selection3D)
+                set(handles.tracts_poly(counter),...
+                    'FaceColor','flat',...
+                    'CData',ones(size(get(handles.tracts_poly(counter),'XData'))) * colordata(selection3D(counter)))
+            end
+            %             set(handles.tracts_poly,'FaceVertexCData',PlotC')
             delete(get(gca,'Colorbar'))
             hc = colorbar('Position',[0.02 0.01 0.02 0.6]);
+            set(gca,'CLim',[min(colordata) max(colordata)])
         else
             % constant color
-            set(handles.tracts_poly,'FaceVertexCData',repmat(get(handles.set_color_poly,'BackgroundColor'),numel(PlotX),1) )
+            %             set(handles.tracts_poly,'FaceVertexCData',repmat(get(handles.set_color_poly,'BackgroundColor'),numel(PlotX),1) )
             delete(get(gca,'ColorBar'))
         end
-    else
-        if isfield(handles,'tracts_poly')
-            set(handles.tracts_poly,'XData',NaN,'YData',NaN,'ZData',NaN)
-        end
-        
+    end
+    if isfield(handles,'tracts_raw')
+        delete(handles.tracts_raw)
     end
     if get(handles.raw,'Value')
         % Plot the raw tracts
-        PlotX = [];PlotY =[];PlotZ = [];
+        %         PlotX = [];PlotY =[];PlotZ = [];
+        
+        STREAMS = cell(1,length(selection3D));
+        counter = 0;
         for fibnr = selection3D
-            PlotX = [PlotX handles.D.tracts_xyz(1,min(handles.D.fibindex(fibnr,1:2)):max(handles.D.fibindex(fibnr,1:2))) NaN];
-            PlotY = [PlotY handles.D.tracts_xyz(2,min(handles.D.fibindex(fibnr,1:2)):max(handles.D.fibindex(fibnr,1:2))) NaN];
-            PlotZ = [PlotZ handles.D.tracts_xyz(3,min(handles.D.fibindex(fibnr,1:2)):max(handles.D.fibindex(fibnr,1:2))) NaN];
+            %             PlotX = [PlotX handles.D.tracts_xyz(1,min(handles.D.fibindex(fibnr,1:2)):max(handles.D.fibindex(fibnr,1:2))) NaN];
+            %             PlotY = [PlotY handles.D.tracts_xyz(2,min(handles.D.fibindex(fibnr,1:2)):max(handles.D.fibindex(fibnr,1:2))) NaN];
+            %             PlotZ = [PlotZ handles.D.tracts_xyz(3,min(handles.D.fibindex(fibnr,1:2)):max(handles.D.fibindex(fibnr,1:2))) NaN];
+            counter = counter + 1;
+            STREAMS{counter} = ...
+                handles.D.tracts_xyz(:,min(handles.D.fibindex(fibnr,1:2)):max(handles.D.fibindex(fibnr,1:2)))';
         end
-        if ~isfield(handles,'tracts_raw')
-            % Create new handle.
-            handles.tracts_raw = plot3(PlotX(:),PlotY(:),PlotZ(:),...
-                'LineWidth',1,...
-                'Color',get(handles.set_color_raw,'BackgroundColor'));
-        else
-            % Update raw tracts.
-            set(handles.tracts_raw,'XData',PlotX(:),'YData',PlotY(:),'ZData',PlotZ(:))
-        end
-    else
-        if isfield(handles,'tracts_raw')
-            set(handles.tracts_raw,'XData',NaN,'YData',NaN,'ZData',NaN)
-        end
+        %         % Create new handle.
+        axes(handles.axes3D)
+        handles.tracts_raw = streamtube(STREAMS,[0.05 10]);
+        set(handles.tracts_raw,'EdgeColor','none',...
+            'FaceColor',get(handles.set_color_raw,'BackgroundColor'),...
+            'DiffuseStrength',0.1,...
+            'AmbientStrength',0.8,...
+            'SpecularStrength',0.1)
+        
+    end
+    
+    if isfield(handles,'tracts_ext')
+        delete(handles.tracts_ext)
     end
     if get(handles.ext,'Value')
         % Plot the extended parts
-        PlotX = [];PlotY = [];PlotZ = [];
+        %         PlotX = [];PlotY = [];PlotZ = [];
+        STREAMS = cell(2,length(selection3D)*2);
+        counter = 0;
         for fibnr = selection3D
             if isfield(handles.D,'PolyCoeff')
                 P = handles.D.PolyCoeff;
             else
-                error('''PolyCoeff'' not found as a field in handles.D. Polynomials fits cannot be plotted.')
+                error('''PolyCoeff'' not found as a field in handles.D. Extensions cannot be plotted.')
             end
+            counter = counter + 1;
+            x1 = [handles.D.endpoints(fibnr,1,1) polyval(P(fibnr).x,P(fibnr).t0)];
+            y1 = [handles.D.endpoints(fibnr,1,2) polyval(P(fibnr).y,P(fibnr).t0)];
+            z1 = [handles.D.endpoints(fibnr,1,3) polyval(P(fibnr).z,P(fibnr).t0)];
+            x2 = [handles.D.endpoints(fibnr,2,1) polyval(P(fibnr).x,P(fibnr).t1)];
+            y2 = [handles.D.endpoints(fibnr,2,2) polyval(P(fibnr).y,P(fibnr).t1)];
+            z2 = [handles.D.endpoints(fibnr,2,3) polyval(P(fibnr).z,P(fibnr).t1)];
+            STREAMS{1,counter} = [x1' y1' z1'];
+            STREAMS{2,counter} = [x2' y2' z2'];
             
-            tmpX = [handles.D.endpoints(fibnr,1,1) polyval(P(fibnr).x,P(fibnr).t0) NaN polyval(P(fibnr).x,P(fibnr).t1)  handles.D.endpoints(fibnr,2,1)];
-            tmpY = [handles.D.endpoints(fibnr,1,2) polyval(P(fibnr).y,P(fibnr).t0) NaN polyval(P(fibnr).y,P(fibnr).t1)  handles.D.endpoints(fibnr,2,2)];
-            tmpZ = [handles.D.endpoints(fibnr,1,3) polyval(P(fibnr).z,P(fibnr).t0) NaN polyval(P(fibnr).z,P(fibnr).t1)  handles.D.endpoints(fibnr,2,3)];
-            PlotX = [PlotX NaN tmpX];
-            PlotY = [PlotY NaN tmpY];
-            PlotZ = [PlotZ NaN tmpZ];
-            if ~isfield(handles,'tracts_ext')
-                % Create new handle.
-                handles.tracts_ext = plot3(PlotX(:),PlotY(:),PlotZ(:),...
-                    'LineWidth',1,...
-                    'Color',get(handles.set_color_ext,'BackgroundColor'));
-            else
-                % Update extensions.
-                set(handles.tracts_ext,'XData',PlotX(:),'YData',PlotY(:),'ZData',PlotZ(:))
-            end
+            %             tmpX = [handles.D.endpoints(fibnr,1,1) polyval(P(fibnr).x,P(fibnr).t0) NaN polyval(P(fibnr).x,P(fibnr).t1)  handles.D.endpoints(fibnr,2,1)];
+            %             tmpY = [handles.D.endpoints(fibnr,1,2) polyval(P(fibnr).y,P(fibnr).t0) NaN polyval(P(fibnr).y,P(fibnr).t1)  handles.D.endpoints(fibnr,2,2)];
+            %             tmpZ = [handles.D.endpoints(fibnr,1,3) polyval(P(fibnr).z,P(fibnr).t0) NaN polyval(P(fibnr).z,P(fibnr).t1)  handles.D.endpoints(fibnr,2,3)];
+            %             PlotX = [PlotX NaN tmpX];
+            %             PlotY = [PlotY NaN tmpY];
+            %             PlotZ = [PlotZ NaN tmpZ];
+            %             if ~isfield(handles,'tracts_ext')
+            %                 % Create new handle.
+            %                 handles.tracts_ext = plot3(PlotX(:),PlotY(:),PlotZ(:),...
+            %                     'LineWidth',1,...
+            %                     'Color',get(handles.set_color_ext,'BackgroundColor'));
+            %             else
+            %                 % Update extensions.
+            %                 set(handles.tracts_ext,'XData',PlotX(:),'YData',PlotY(:),'ZData',PlotZ(:))
+            %             end
         end
-    else
-        if isfield(handles,'tracts_ext')
-            set(handles.tracts_ext,'XData',NaN,'YData',NaN,'ZData',NaN)
-        end
+        handles.tracts_raw = streamtube(STREAMS,[0.05 10]);
+        set(handles.tracts_raw,'EdgeColor','none',...
+            'FaceColor',get(handles.set_color_ext,'BackgroundColor'),...
+            'DiffuseStrength',0.1,...
+            'AmbientStrength',0.8,...
+            'SpecularStrength',0.1)
+        
     end
     
     % Update histograms
@@ -611,7 +638,7 @@ if ~isempty(handles.D)
         end
     end
     
-    % Update the dropdown-menu for fibre color-coding with the list of 
+    % Update the dropdown-menu for fibre color-coding with the list of
     % available variables.
     set(findobj(gcf,'Tag','color_coding'),'String',AvailableVarList)
 end

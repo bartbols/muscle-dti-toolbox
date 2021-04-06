@@ -32,6 +32,9 @@ addParameter(p,'FaceAlpha',0.3,@isscalar)
 addParameter(p,'EdgeColor','none')
 addParameter(p,'EdgeAlpha',1,@isscalar)
 addParameter(p,'LineWidth',1,@isscalar)
+addParameter(p,'DiffuseStrength',0.1,@isscalar)
+addParameter(p,'AmbientStrength',0.8,@isscalar)
+addParameter(p,'SpecularStrength',0.1,@isscalar)
 addParameter(p,'ShowNormals',false)
 addParameter(p,'scale',[],@isscalar)
 
@@ -56,7 +59,10 @@ h = patch('Vertices',surf_model.vertices*scale,...
                'FaceAlpha',p.Results.FaceAlpha,...
                'EdgeColor',p.Results.EdgeColor,...
                'EdgeAlpha',p.Results.EdgeAlpha,...
-               'LineWidth',p.Results.LineWidth);
+               'LineWidth',p.Results.LineWidth,...
+               'DiffuseStrength',p.Results.DiffuseStrength,...
+               'AmbientStrength',p.Results.AmbientStrength,...
+               'SpecularStrength',p.Results.SpecularStrength);
 
 if p.Results.ShowNormals == true
     if ~isfield(surf_model,'normals')
@@ -72,6 +78,11 @@ if p.Results.ShowNormals == true
         'AutoScale','off');
 end
 
+% Turn on some light, if no light objects exist
+if isempty(findobj(gcf,'Type','light'))
+    light('position',[0 1 0]);
+    light('position',[0 -1 0]);
+end
 axis equal
 if holdstate == 0
     hold(gca,'off')

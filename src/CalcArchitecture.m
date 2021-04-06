@@ -38,6 +38,8 @@ function [ DTItracts ] = CalcArchitecture( DTItracts,SurfModel,varargin)
 %                   point outside. If they don't, set flipnormals to true.
 % - flipnormals_apo : by convention, the normals of the aponeurosis model 
 %                   point outside. If they don't, set flipnormals_apo to true.
+% - curv :          flag (true/false) indicating if fibre curvature should 
+%                   be calculated.. Default: true.
 %
 % tracts_xyz is a 3 x N array containing the xyz-coordinates of all tracts
 % points of all fibres in the set.
@@ -74,13 +76,14 @@ addParameter(p,'order',3,@(x) isscalar(x) && x>0)
 addParameter(p,'aponeurosis',[])
 addParameter(p,'flipnormals',false,@(x) x==0 || x==1 || islogical(x) )
 addParameter(p,'flipnormals_apo',false,@(x) x==0 || x==1 || islogical(x) )
+addParameter(p,'curv',true,@(x) x==0 || x==1 || islogical(x) )
 parse(p,DTItracts,SurfModel,varargin{:})
 
 order       = p.Results.order;
 aponeurosis = p.Results.aponeurosis;
 flipnormals = p.Results.flipnormals;
 flipnormals_apo = p.Results.flipnormals_apo;
-
+curv        = p.Results.curv;
 %% Read and check inputs
 % If a filename is provided, read the file with the DTItracts.
 if ~isstruct(DTItracts)
@@ -139,7 +142,9 @@ DTItracts.penangle = CalcPenAngle( DTItracts,SurfModel,...
     'aponeurosis',aponeurosis);
     
 % Calculate curvature
-DTItracts.curvature = CalcCurvature( DTItracts.PolyCoeff);
+if curv == true
+    DTItracts.curvature = CalcCurvature( DTItracts.PolyCoeff);
+end
 
 % Add angle between direction vectors at endpoint. This angle can later be
 % used to exclude fibres that originate and insert on the same aponeurosis.

@@ -63,6 +63,8 @@ function reg_elastix( fixed, moving, parfile,varargin )
 %                          paired with with ref_points_f.
 % - log_file             : filename to which a copy of the log-file will be
 %                          saved.
+% - copy_results_dir     : path to which the temporary working directory
+%                          will be saved after registration.
 
 % Change log:
 % 11/09/2018, BB: Added option to input corresponding points to guide
@@ -93,6 +95,7 @@ addParameter(p,'initial',[],@(x) ischar(x) || isempty(x))
 addParameter(p,'ref_points_f',[],@(x) exist(x,'file')==2 || isempty(x))
 addParameter(p,'ref_points_m',[],@(x) exist(x,'file')==2 || isempty(x))
 addParameter(p,'log_file',[],@(x) ischar(x) || isempty(x))
+addParameter(p,'copy_results_dir',[])
 
 parse(p,fixed, moving, parfile,varargin{:});
 
@@ -114,6 +117,7 @@ jacobian       = p.Results.jacobian;
 ref_points_f   = p.Results.ref_points_f;
 ref_points_m   = p.Results.ref_points_m;
 log_file       = p.Results.log_file;
+copy_results_dir = p.Results.copy_results_dir;
 
 
 if xor(isempty(ref_points_f), isempty(ref_points_m))
@@ -431,6 +435,10 @@ try
     % Copy the log file
     if ~isempty(log_file)
         copyfile(fullfile(tmpdir,sprintf('step%02d',nSteps),'elastix.log'),log_file)
+    end
+    % Copy temporary working directory
+    if ~isempty(copy_results_dir)        
+        copyfile(tmpdir,copy_results_dir)
     end
     % Delete the temporary working directory.
     rmdir(tmpdir,'s')
