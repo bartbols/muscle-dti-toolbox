@@ -1,15 +1,15 @@
-function varargout = MakeLAMBDA_map( fib_filename,DTI_filename, fa_threshold,varargin )
-%MAKELAMBDA_MAP Reads the eigenvalue data from the DSI-reconstructed
-% .fib-file and saves it as a nifti-file with the same metadata as the
-% original DTI data.
+function varargout = MakeLogTensor_map( fib_filename,DTI_filename, fa_threshold,varargin )
+%MAKELOGTENSOR_MAP Reads the tensor components from the DSI-reconstructed
+% .fib-file, applies a Log-Euclidean transform, and saves the log-transformed
+% tensor as a nifti-file with the same metadata as the original DTI data.
 %
 % Bart Bolsterlee, Neuroscience Research Australia (NeuRA)
-% February 2017
+% May 2021
 %
 % ----------------- USAGE ----------------- 
-% LAMBDA_filename = MakeLAMBDA_map( fib_filename,DTI_filename, fa_threshold)
+% Tensor_filename = MakeLogTensor_map( fib_filename,DTI_filename, fa_threshold)
 % or 
-% LAMBDA_filename = MakeLAMBDA_map( fib_filename,DTI_filename, fa_threshold,LAMBDA_filename)
+% Tensor_filename = MakeLogTensor_map( fib_filename,DTI_filename, fa_threshold,Tensor_filename)
 %
 % ----------------- INPUT ----------------- 
 % - fib_filename     : filename of .fib file as reconstructed with DSI studio
@@ -19,20 +19,20 @@ function varargout = MakeLAMBDA_map( fib_filename,DTI_filename, fa_threshold,var
 %                      set to 0;
 %
 % Optional 4th input argument:
-% - LAMBDA_filename : filename of new file with eigenvalue data
+% - Tensor_filename : filename of new file with eigenvalue data
 %
 % ----------------- OUTPUT ----------------- 
-%-  LAMBDA_filename   : filename of new file with eigenvalue data
-%-  LAMBDA            : NIfTI structure with eigenvalue data
+%-  Tensor_filename   : filename of new file with eigenvalue data
+%-  Tensor            : NIfTI structure with eigenvalue data
 
 %% Check inputs
 p = inputParser;
 addRequired(p,'fib_filename',@(x) contains(x,'.fib'))
 addRequired(p,'DTI_filename',@(x) contains(x,'.nii'))
 addRequired(p,'fa_threshold',@(x) validateattributes(x,{'numeric'},{'size',[1 2]}))
-addOptional(p,'LAMBDA_filename',[DTI_filename(1:end-7) '_LAMBDA.nii.gz'],@(x) contains(x,'.nii'))
+addOptional(p,'Tensor_filename',[DTI_filename(1:end-7) '_LogTensor.nii.gz'],@(x) contains(x,'.nii'))
 parse(p,fib_filename,DTI_filename,fa_threshold,varargin{:});
-LAMBDA_filename = p.Results.LAMBDA_filename;
+Tensor_filename = p.Results.Tensor_filename;
 %%
 
 % Load the fib file
@@ -57,23 +57,33 @@ DTI_nii = load_untouch_nii(DTI_filename);
 % Create new nifti-file with same metadata as original DTI data but with
 % the primary eigenvector data (3-channels) as image data
 % perm_dim = [2 3 4 1];
-% LAMBDA_map = permute(reshape(fib_data.dir0,[3 fib_data.dimension]),perm_dim);
+% Tensor_map = permute(reshape(fib_data.dir0,[3 fib_data.dimension]),perm_dim);
 
 % Filter the eigenvector map based on FA
-% L1 = LAMBDA_map(:,:,:,1);
-% L2 = LAMBDA_map(:,:,:,2);
-% L3 = LAMBDA_map(:,:,:,3);
-L1 = reshape(fib_data.ad,fib_data.dimension);
-L2 = reshape(fib_data.rd1,fib_data.dimension);
-L3 = reshape(fib_data.rd2,fib_data.dimension);
-L1(fa_map < fa_threshold(1) | fa_map > fa_threshold(2)) = 0;
-L2(fa_map < fa_threshold(1) | fa_map > fa_threshold(2)) = 0;
-L3(fa_map < fa_threshold(1) | fa_map > fa_threshold(2)) = 0;
+txx = reshape(fib_data.txx,fib_data.dimension);
+tyy = reshape(fib_data.tyy,fib_data.dimension);
+tzz = reshape(fib_data.tzz,fib_data.dimension);
+txy = reshape(fib_data.txy,fib_data.dimension);
+txz = reshape(fib_data.txz,fib_data.dimension);
+tyz = reshape(fib_data.tyz,fib_data.dimension);
+txx(fa_map < fa_threshold(1) | fa_map > fa_threshold(2)) = 0;
+tyy(fa_map < fa_threshold(1) | fa_map > fa_threshold(2)) = 0;
+tzz(fa_map < fa_threshold(1) | fa_map > fa_threshold(2)) = 0;
+txy(fa_map < fa_threshold(1) | fa_map > fa_threshold(2)) = 0;
+txz(fa_map < fa_threshold(1) | fa_map > fa_threshold(2)) = 0;
+tyz(fa_map < fa_threshold(1) | fa_map > fa_threshold(2)) = 0;
 
-scaling = 1;
-LAMBDA_map(:,:,:,1) = L1 * scaling;
-LAMBDA_map(:,:,:,2) = L2 * scaling;
-LAMBDA_map(:,:,:,3) = L3 * scaling;
+scaling = 1e3;
+Tensor_map(:,:,:,1) = txx * scaling;
+Tensor_map(:,:,:,2) = tyy * scaling;
+Tensor_map(:,:,:,3) = tzz * scaling;
+Tensor_map(:,:,:,4) = txy * scaling;
+Tensor_map(:,:,:,5) = txz * scaling;
+Tensor_map(:,:,:,6) = tyz * scaling;
+
+fprintf('Log transforming the tensor field...')
+Tensor_map = logTensor(vec2tensor(Tensor_map));
+fprintf(' completed.\n')
 
 % Use all information from the DTI nifti file but overwrite the image data
 % with the eigenvalue maps.
@@ -89,24 +99,22 @@ LAMBDA_map(:,:,:,3) = L3 * scaling;
 % coordinate system.
 
 if DTI_nii.hdr.hist.srow_x(1) > 0
-    LAMBDA_map = flip(LAMBDA_map,1);
-%     LAMBDA_map(:,:,:,1) = LAMBDA_map(:,:,:,1);
+    Tensor_map = flip(Tensor_map,1);
 end
 if DTI_nii.hdr.hist.srow_y(2) > 0
-    LAMBDA_map = flip(LAMBDA_map,2);
-%     LAMBDA_map(:,:,:,2) = LAMBDA_map(:,:,:,2);
+    Tensor_map = flip(Tensor_map,2);
 end
     
-DTI_nii.img = single(LAMBDA_map);
-DTI_nii.hdr.dime.dim(5) = 3;
+DTI_nii.img = single(Tensor_map);
+DTI_nii.hdr.dime.dim(5) = 6;
 DTI_nii.hdr.dime.scl_slope = 1; %/scaling;
 DTI_nii.hdr.dime.scl_inter = 0;
 DTI_nii.hdr.dime.bitpix = 32;
 DTI_nii.hdr.dime.datatype = 16;
-save_untouch_nii(DTI_nii,LAMBDA_filename)
+save_untouch_nii(DTI_nii,Tensor_filename)
 
 if nargout > 0
-    varargout{1} = LAMBDA_filename;
+    varargout{1} = Tensor_filename;
     if nargout > 1
         varargout{2} = DTI_nii;
     end
