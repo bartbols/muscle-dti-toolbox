@@ -402,11 +402,11 @@ filename.FIB       = F{strcmp(F(:,1),'FIB'),2};
         % not yet been implemented.
         
 %         
-%         % Put back into 4D file
-%         % Correct header
-%         DWI_uncorr.hdr.hist.srow_x = [sign(DWI_uncorr.hdr.hist.srow_x(1))*DWI_uncorr.hdr.dime.pixdim(2) 0 0 0];
-%         DWI_uncorr.hdr.hist.srow_y = [0 sign(DWI_uncorr.hdr.hist.srow_y(2))*DWI_uncorr.hdr.dime.pixdim(3) 0 0];
-%         DWI_uncorr.hdr.hist.srow_z = [0 0 sign(DWI_uncorr.hdr.hist.srow_z(3))*DWI_uncorr.hdr.dime.pixdim(4) 0];
+        % Put back into 4D file
+        % Correct header
+        DWI_corr.hdr.hist.srow_x = [sign(DWI_uncorr.hdr.hist.srow_x(1))*DWI_uncorr.hdr.dime.pixdim(2) 0 0 0];
+        DWI_corr.hdr.hist.srow_y = [0 sign(DWI_uncorr.hdr.hist.srow_y(2))*DWI_uncorr.hdr.dime.pixdim(3) 0 0];
+        DWI_corr.hdr.hist.srow_z = [0 0 sign(DWI_uncorr.hdr.hist.srow_z(3))*DWI_uncorr.hdr.dime.pixdim(4) 0];
 %         % Save as new file
 %         char_list = char(['a':'z' '0':'9']) ;
         DTI_for_recon = fullfile(tempdir,[char_list(ceil(length(char_list)*rand(1,8))) '.nii.gz']);

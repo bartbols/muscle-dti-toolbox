@@ -9,10 +9,13 @@ function tensor_rot = rotateTensor(tensor,R)
 nd = ndims(tensor);
 sz = size(tensor);
 
+isvec=false;
 if sz(nd) == 6
     % Input is in vector format. Convert to full tensor format for
     % processing.
+    isvec=true;
     tensor = vec2tensor(tensor);
+    nd=nd+1;
 end
 
 % Reshape tensor field into one long array of tensors for easy processing.
@@ -41,7 +44,7 @@ tensor_rot(:,3,3) = R(1,3)*(R(1,3)*tensor(:,1,1) + R(2,3)*tensor(:,1,2) + R(3,3)
 % 
 % Put tensor field back in original (input) dimensions.
 tensor_rot = reshape(tensor_rot,[sz(1:nd-2),3,3]);
-if sz(nd) == 6
+if isvec == true
     % Convert back to vector format.
     tensor_rot = tensor2vec(tensor_rot);
 end

@@ -146,7 +146,7 @@ end
 
 % Close the file
 fclose(fid);
-fprintf('Wrote %d facets\n',size(facets, 3));
+% fprintf('Wrote %d facets\n',size(facets, 3));
 
 % Input handling subfunctions
 function [faces, vertices, options] = parseInputs(varargin)
