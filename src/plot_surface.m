@@ -42,7 +42,7 @@ parse(p,surf_model,varargin{:})
 
 % Read the STL-file 
 if ~isstruct(surf_model)
-    surf_model = stlread(surf_model);
+    surf_model = stlread2(surf_model);
 end
 
 if isempty(p.Results.scale)

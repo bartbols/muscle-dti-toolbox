@@ -326,13 +326,13 @@ try
     
     if ~isempty(surface_in)
         % Read the surface model
-        FV = stlread(surface_in);        
+        FV = stlread2(surface_in);        
         
         % Transform the vertices with transformix
         FV.vertices = transformix_points(FV.vertices, transform_file_final);
         
         % Write as stl-file.
-        stlwrite(surface_out,FV)
+        stlwrite2(surface_out,FV)
         fprintf('In reg_elastix: Transformed surface saved as %s\n',surface_out)
 
     end

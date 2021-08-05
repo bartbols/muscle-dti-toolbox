@@ -1,19 +1,19 @@
-function stlwrite(filename, varargin)
-%STLWRITE   Write STL file from patch or surface data.
+function stlwrite2(filename, varargin)
+%STLWRITE2   Write STL file from patch or surface data.
 %
-%   STLWRITE(FILE,fv) writes a stereolithography (STL) file to FILE for a triangulated
+%   STLWRITE2(FILE,fv) writes a stereolithography (STL) file to FILE for a triangulated
 %   patch defined by FV (a structure with fields 'vertices' and 'faces').
 %
-%   STLWRITE(FILE,FACES,VERTICES) takes faces and vertices separately, rather than in an FV struct
+%   STLWRITE2(FILE,FACES,VERTICES) takes faces and vertices separately, rather than in an FV struct
 %
-%   STLWRITE(FILE,X,Y,Z) creates an STL file from surface data in X, Y, and Z. STLWRITE triangulates
+%   STLWRITE2(FILE,X,Y,Z) creates an STL file from surface data in X, Y, and Z. STLWRITE triangulates
 %   this gridded data into a triangulated surface using triangulations options specified below. X, Y
 %   and Z can be two-dimensional arrays with the same size. If X and Y are vectors with length equal
 %   to SIZE(Z,2) and SIZE(Z,1), respectively, they are passed through MESHGRID to create gridded
 %   data. If X or Y are scalar values, they are used to specify the X and Y spacing between grid
 %   points.
 %
-%   STLWRITE(...,'PropertyName',VALUE,'PropertyName',VALUE,...) writes an STL file using the
+%   STLWRITE2(...,'PropertyName',VALUE,'PropertyName',VALUE,...) writes an STL file using the
 %   following property values:
 %
 %   MODE          - File is written using 'binary' (default) or 'ascii'.
@@ -42,13 +42,13 @@ function stlwrite(filename, varargin)
 %       tmpvol = zeros(20,20,20);       % Empty voxel volume
 %       tmpvol(8:12,8:12,5:15) = 1;     % Turn some voxels on
 %       fv = isosurface(tmpvol, 0.99);  % Create the patch object
-%       stlwrite('test.stl',fv)         % Save to binary .stl
+%       stlwrite2('test.stl',fv)         % Save to binary .stl
 %
 %   Example 2:
 %       % Write ascii STL from gridded data
 %       [X,Y] = deal(1:40);             % Create grid reference
 %       Z = peaks(40);                  % Create grid height
-%       stlwrite('test.stl',X,Y,Z,'mode','ascii')
+%       stlwrite2('test.stl',X,Y,Z,'mode','ascii')
 
 % =========================================================================
 %
@@ -67,6 +67,9 @@ function stlwrite(filename, varargin)
 %
 %   Author: Sven Holcombe, 11-24-11
 % =========================================================================
+%
+% Edit by Bart Bolsterlee, 23/7/2021: renamed function to stlwrite2 to not
+% conflict with Matlab's built-in function stlwrite.
 
 % % Check valid filename path
 % narginchk(2, inf)
@@ -96,7 +99,7 @@ clear normals
 permissions = {'w','wb+'};
 fid = fopen(filename, permissions{asciiMode+1});
 if (fid == -1)
-    error('stlwrite:cannotWriteFile', 'Unable to write to %s', filename);
+    error('stlwrite2:cannotWriteFile', 'Unable to write to %s', filename);
 end
 
 % Write the file contents
@@ -151,7 +154,7 @@ fclose(fid);
 % Input handling subfunctions
 function [faces, vertices, options] = parseInputs(varargin)
 % Determine input type
-if isstruct(varargin{1}) % stlwrite('file', FVstruct, ...)
+if isstruct(varargin{1}) % stlwrite2('file', FVstruct, ...)
     if ~all(isfield(varargin{1},{'vertices','faces'}))
         error( 'Variable p must be a faces/vertices structure' );
     end
@@ -166,7 +169,7 @@ elseif isnumeric(varargin{1})
     
     options = parseOptions(varargin{numericInputCnt+1:end});
     switch numericInputCnt
-        case 3 % stlwrite('file', X, Y, Z, ...)
+        case 3 % stlwrite2('file', X, Y, Z, ...)
             % Extract the matrix Z
             Z = varargin{3};
             
@@ -186,7 +189,7 @@ elseif isnumeric(varargin{1})
                 % Convert vector XY to meshgrid
                 [X,Y] = meshgrid(varargin{1}, varargin{2});
             else
-                error('stlwrite:badinput', 'Unable to resolve X and Y variables');
+                error('stlwrite2:badinput', 'Unable to resolve X and Y variables');
             end
             
             % Convert to faces/vertices
@@ -195,18 +198,18 @@ elseif isnumeric(varargin{1})
                 vertices = [X(:) Y(:) Z(:)];
             else
                 if ~exist('mesh2tri','file')
-                    error('stlwrite:missing', '"mesh2tri" is required to convert X,Y,Z matrices to STL. It can be downloaded from:\n%s\n',...
+                    error('stlwrite2:missing', '"mesh2tri" is required to convert X,Y,Z matrices to STL. It can be downloaded from:\n%s\n',...
                         'http://www.mathworks.com/matlabcentral/fileexchange/28327')
                 end
                 [faces, vertices] = mesh2tri(X, Y, Z, options.triangulation);
             end
             
-        case 2 % stlwrite('file', FACES, VERTICES, ...)
+        case 2 % stlwrite2('file', FACES, VERTICES, ...)
             faces = varargin{1};
             vertices = varargin{2};
             
         otherwise
-            error('stlwrite:badinput', 'Unable to resolve input types.');
+            error('stlwrite2:badinput', 'Unable to resolve input types.');
     end
     
 end
@@ -214,7 +217,7 @@ end
 function options = parseOptions(varargin)
 IP = inputParser;
 IP.addParamValue('mode', 'binary', @ischar)
-IP.addParamValue('title', sprintf('Created by stlwrite.m %s',datestr(now)), @ischar);
+IP.addParamValue('title', sprintf('Created by stlwrite2.m %s',datestr(now)), @ischar);
 IP.addParamValue('triangulation', 'delaunay', @ischar);
 IP.addParamValue('facecolor',[], @isnumeric)
 IP.parse(varargin{:});

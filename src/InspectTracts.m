@@ -176,7 +176,7 @@ end
 if ~isempty(SurfModel)
     if ~isstruct(SurfModel)
         if exist(SurfModel,'file') == 2
-            SurfModel = stlread(SurfModel);
+            SurfModel = stlread2(SurfModel);
         else
             warning('%s does not exist. Surface model not displayed.',SurfModel)
             SurfModel = [];
@@ -190,7 +190,7 @@ end
 if ~isempty(aponeurosis)
     if ~isstruct(aponeurosis)
         if exist(aponeurosis,'file') == 2
-            aponeurosis = stlread(aponeurosis);
+            aponeurosis = stlread2(aponeurosis);
         else
             warning('%s does not exist. Aponeurosis model not displayed.',SurfModel)
             aponeurosis = [];

@@ -63,7 +63,7 @@ p.footer {
 }
 
   </style></head><body><div class="content"><h1>3D Model Demo</h1><!--introduction--><p>This is short demo that loads and renders a 3D model of a human femur. It showcases some of MATLAB's advanced graphics features, including lighting and specular reflectance.</p><!--/introduction--><h2>Contents</h2><div><ul><li><a href="#1">Load STL mesh</a></li><li><a href="#2">Render</a></li></ul></div><h2>Load STL mesh<a name="1"></a></h2><p>Stereolithography (STL) files are a common format for storing mesh data. STL meshes are simply a collection of triangular faces. This type of model is very suitable for use with MATLAB's PATCH graphics object.</p><pre class="codeinput"><span class="comment">% Import an STL mesh, returning a PATCH-compatible face-vertex structure</span>
-fv = stlread(<span class="string">'femur.stl'</span>);
+fv = stlread2(<span class="string">'femur.stl'</span>);
 </pre><h2>Render<a name="2"></a></h2><p>The model is rendered with a PATCH graphics object. We also add some dynamic lighting, and adjust the material properties to change the specular highlighting.</p><pre class="codeinput">patch(fv,<span class="string">'FaceColor'</span>,       [0.8 0.8 1.0], <span class="keyword">...</span>
          <span class="string">'EdgeColor'</span>,       <span class="string">'none'</span>,        <span class="keyword">...</span>
          <span class="string">'FaceLighting'</span>,    <span class="string">'gouraud'</span>,     <span class="keyword">...</span>
@@ -93,7 +93,7 @@ view([-135 35]);
 % suitable for use with MATLAB's PATCH graphics object.
 
 % Import an STL mesh, returning a PATCH-compatible face-vertex structure
-fv = stlread('femur.stl');
+fv = stlread2('femur.stl');
 
 
 %% Render

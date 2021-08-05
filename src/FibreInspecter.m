@@ -233,7 +233,7 @@ musfilename = get(findobj(gcf,'Tag','mus_edit'),'String');
 muscle = [];
 if ~isempty(musfilename)
     if exist(musfilename,'file') == 2
-        muscle = stlread(musfilename);
+        muscle = stlread2(musfilename);
     else
         warning('Muscle model %s not found.\n',musfilename)
     end
@@ -281,7 +281,7 @@ apo = [];
 apofilename = get(findobj(gcf,'Tag','apo_edit'),'String');
 if ~isempty(apofilename)
     if exist(apofilename,'file') == 2
-        apo = stlread(apofilename);
+        apo = stlread2(apofilename);
     else
         warning('Aponeurosis model %s not found.\n',apofilename)
     end

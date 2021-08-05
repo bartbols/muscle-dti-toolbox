@@ -12,7 +12,7 @@
 % suitable for use with MATLAB's PATCH graphics object.
 
 % Import an STL mesh, returning a PATCH-compatible face-vertex structure
-fv = stlread('femur.stl');
+fv = stlread2('femur.stl');
 
 
 %% Render

@@ -46,13 +46,26 @@ aponeurosis = p.Results.aponeurosis;
 %% Read inputs
 % if tract filename is provided, read the file.
 if ~isstruct(DTItracts)
-    DTItracts = load(DTItracts);
+    if exist(DTItracts,'file') == 2
+        % Check extension
+        [~,~,ext] = fileparts(DTItracts);
+        switch ext 
+            case '.mat'
+                % read matlab DTI tracts file.
+                DTItracts = load(DTItracts);
+            case '.tck'
+                % Read mrtrix tck file
+                DTItracts = tck2tracts(DTItracts);
+        end
+    else
+        error('%s does not exist.',DTItracts)
+    end
 end
 
 % if surface model filename is provided, read the stl file
 if ~isstruct(SurfModel)
     if exist(SurfModel,'file') == 2
-        SurfModel = stlread(SurfModel);
+        SurfModel = stlread2(SurfModel);
     else
         error('%s does not exist.',SurfModel)
     end
@@ -61,7 +74,7 @@ end
 % Read the aponeurosis surface, if provided
 if ~isempty(aponeurosis) && ~isstruct(aponeurosis)
     if exist(aponeurosis,'file') == 2
-        aponeurosis = stlread(aponeurosis);
+        aponeurosis = stlread2(aponeurosis);
     else
         error('%s does not exist.',aponeurosis)
     end

@@ -173,13 +173,13 @@ try
             rmdir(tmpdir,'s')
         case 'surface'
             % Read the surface model
-            FV = stlread(filename_in);
+            FV = stlread2(filename_in);
             
             % Transform the vertices with transformix
             FV.vertices = transformix_points(FV.vertices, transform_file);
             
             % Write as stl-file.
-            stlwrite(filename_out,FV)
+            stlwrite2(filename_out,FV)
             fprintf('In reg_elastix: Transformed surface saved as %s\n',filename_out)
     end
 catch ME

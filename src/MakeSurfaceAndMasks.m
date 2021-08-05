@@ -288,7 +288,7 @@ try
             if FlipNormals == true
                 FV.faces(:,[1 2]) = FV.faces(:,[2 1]);
             end
-            stlwrite(filename(c).surface,FV);
+            stlwrite2(filename(c).surface,FV);
             fprintf('Surface saved as %s\n',filename(c).surface)
             clear FV
         end

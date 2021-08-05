@@ -21,7 +21,7 @@ function surf2binary_mask(nii,surface,mask_filename)
 
 if ischar(surface)
     % Load STL file
-    FV = stlread(surface);
+    FV = stlread2(surface);
 else
     FV = surface;
 end

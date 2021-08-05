@@ -1,12 +1,12 @@
-function varargout = stlread(file)
-% STLREAD imports geometry from an STL file into MATLAB.
-%    FV = STLREAD(FILENAME) imports triangular faces from the ASCII or binary
+function varargout = stlread2(file)
+% STLREAD2 imports geometry from an STL file into MATLAB.
+%    FV = STLREAD2(FILENAME) imports triangular faces from the ASCII or binary
 %    STL file idicated by FILENAME, and returns the patch struct FV, with fields
 %    'faces' and 'vertices'.
 %
-%    [F,V] = STLREAD(FILENAME) returns the faces F and vertices V separately.
+%    [F,V] = STLREAD2(FILENAME) returns the faces F and vertices V separately.
 %
-%    [F,V,N] = STLREAD(FILENAME) also returns the face normal vectors.
+%    [F,V,N] = STLREAD2(FILENAME) also returns the face normal vectors.
 %
 %    The faces and vertices are arranged in the format used by the PATCH plot
 %    object.
@@ -14,6 +14,7 @@ function varargout = stlread(file)
 % Copyright 2011 The MathWorks, Inc.
 
 % Edited by Bart Bolsterlee 28/07/2016 to remove duplicate vertices
+% Edit by Bart Bolsterlee 23/07/2021: filename changed to stlread2 to not conflict with Matlab's built-in function stlread.
 
     if ~exist(file,'file')
         error(['File ''%s'' not found. If the file is not on MATLAB''s path' ...
@@ -58,7 +59,7 @@ function [F,V,N] = stlbinary(M)
     N = [];
     
     if length(M) < 84
-        error('MATLAB:stlread:incorrectFormat', ...
+        error('MATLAB:stlread2:incorrectFormat', ...
               'Incomplete header information in binary STL file.');
     end
     
@@ -67,7 +68,7 @@ function [F,V,N] = stlbinary(M)
     numFaces = typecast(M(81:84),'uint32');
     %numFaces = double(numFaces);
     if numFaces == 0
-        warning('MATLAB:stlread:nodata','No data in STL file.');
+        warning('MATLAB:stlread2:nodata','No data in STL file.');
         return
     end
     
@@ -124,7 +125,7 @@ end
 
 
 function [F,V,N] = stlascii(M)
-    warning('MATLAB:stlread:ascii','ASCII STL files currently not supported.');
+    warning('MATLAB:stlread2:ascii','ASCII STL files currently not supported.');
     F = [];
     V = [];
     N = [];
@@ -135,7 +136,7 @@ end
 function tf = isbinary(A)
 % ISBINARY uses the first line of an STL file to identify its format.
     if isempty(A) || length(A) < 5
-        error('MATLAB:stlread:incorrectFormat', ...
+        error('MATLAB:stlread2:incorrectFormat', ...
               'File does not appear to be an ASCII or binary STL file.');
     end    
     if strcmpi('solid',char(A(1:5)'))
