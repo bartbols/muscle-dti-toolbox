@@ -19,7 +19,7 @@ function varargout = MakeTensor_map( fib_filename,DTI_filename, fa_threshold,var
 %                      set to 0;
 %
 % Optional 4th input argument:
-% - Tensor_filename : filename of new file with eigenvalue data
+% - Tensor_filename : filename of new file with tensor data
 %
 % ----------------- OUTPUT ----------------- 
 %-  Tensor_filename   : filename of new file with eigenvalue data

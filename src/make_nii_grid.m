@@ -22,18 +22,26 @@ if ~isstruct(nii)
 end
 
 % Make grid with voxel indices
-[Xv,Yv,Zv] = meshgrid(...
+[J,I,K] = meshgrid(...
     0:nii.hdr.dime.dim(2)-1,...
     0:nii.hdr.dime.dim(3)-1,...
     0:nii.hdr.dime.dim(4)-1);
 
 % Transform to physical coordinates using the transformation stored in the
 % NIfTI header.
-T = makeT_from_quat(nii);
+if nii.hdr.hist.sform_code == 1   
+    T = [nii.hdr.hist.srow_x;...
+         nii.hdr.hist.srow_y;...
+         nii.hdr.hist.srow_z;...
+         0 0 0 1];
+elseif nii.hdr.hist.qform_code == 1
+    T = makeT_from_quat(nii);
+end
+    
 
-X = T(1,1)*Yv + T(1,2)*Xv + T(1,3)*Zv + T(1,4);
-Y = T(2,1)*Yv + T(2,2)*Xv + T(2,3)*Zv + T(2,4);
-Z = T(3,1)*Yv + T(3,2)*Xv + T(3,3)*Zv + T(3,4);
+X = T(1,1)*I + T(1,2)*J + T(1,3)*K + T(1,4);
+Y = T(2,1)*I + T(2,2)*J + T(2,3)*K + T(2,4);
+Z = T(3,1)*I + T(3,2)*J + T(3,3)*K + T(3,4);
 
 end
 

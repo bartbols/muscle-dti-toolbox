@@ -103,7 +103,7 @@ fprintf(' completed.\n')
 % Write the model
 % stlwrite(strrep(model_name,'.stl','_unsmoothed.stl'),unsmoothed)
 if exist(fileparts(model_name),'dir') ~=7;mkdir(fileparts(model_name));end
-stlwrite(model_name,model)
+stlwrite2(model_name,model)
 fprintf('Aponeurosis model written to %s.\n',model_name)
 
 % plot_surface(model,'ShowNormals',true,'FaceColor','y')'

@@ -1,4 +1,4 @@
-function [totalVolume,totalArea] = stlVolume(p,t)
+function [totalVolume,totalArea,area] = stlVolume(p,t)
 % Given a surface triangulation, compute the volume enclosed using
 % divergence theorem.
 % Assumption:Triangle nodes are ordered correctly, i.e.,computed normal is outwards

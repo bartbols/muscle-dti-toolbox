@@ -10,7 +10,8 @@ if nargin == 0
         return
     end
     filename_in = fullfile(pathname,fname);
-    [fname,pathname] = uiputfile({'*.nii;*.nii.gz'},'Save as',pathname);
+    [fname,pathname] = uiputfile({'*.nii;*.nii.gz'},'Save as',...
+        strrep(filename_in,'.nii','_clean.nii'));
     
     if fname == 0
         return
@@ -39,5 +40,15 @@ for label_nr = label_nrs'
     new.img(BW.PixelIdxList{idx}) = cast(label_nr,'like',M.img);
     fprintf(' completed.\n')
 end
+
+% Calculate dice coefficient between original and cleaned label.
+DSC = dice(double(M.img),double(new.img));
+fprintf('\n---- Dice coefficients between original and cleaned label ----\n')
+for label_nr = 1 : length(DSC)
+    if ~isnan(DSC(label_nr))
+        fprintf('Label %02d: %.4f\n',label_nr,DSC(label_nr))
+    end
+end
+
 save_untouch_nii(new,filename_clean);
 fprintf('Cleaned mask saved as %s\n',filename_clean)
